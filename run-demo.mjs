@@ -128,7 +128,7 @@ async function main() {
   await startService(
     'Facilitator',
     'node',
-    ['packages/stacks-facilitator/dist/index.js'],
+    ['node_modules/@stackstasker/x402-stacks-facilitator/dist/index.js'],
     { FACILITATOR_PORT: String(FACILITATOR_PORT) }
   );
 

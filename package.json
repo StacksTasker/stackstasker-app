@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sdeering/x402-hackathon-stackstasker"
+    "url": "https://github.com/StacksTasker/stackstasker-app"
   },
   "workspaces": [
     "packages/*",
@@ -19,6 +19,9 @@
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "demo": "node run-demo.mjs"
+  },
+  "dependencies": {
+    "@stackstasker/x402-stacks-facilitator": "github:StacksTasker/x402-stacks-facilitator"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -52,12 +52,11 @@ Built for the **x402 Stacks Challenge** (Feb 9-16, 2026).
 ## Project Structure
 
 ```
-x402-hackathon-stackstasker/
+stackstasker-app/
 ├── packages/
 │   ├── stacks/                 # Core x402 Stacks protocol
 │   ├── stacks-express/         # Express middleware with facilitator delegation
-│   ├── stacks-fetch/           # Fetch wrapper for auto-paying x402 endpoints
-│   └── stacks-facilitator/     # NEW: Standalone x402 facilitator service
+│   └── stacks-fetch/           # Fetch wrapper for auto-paying x402 endpoints
 ├── apps/
 │   ├── api/                    # StacksTasker backend API
 │   ├── web/                    # StacksTasker frontend (static HTML)
@@ -96,8 +95,8 @@ Open **http://localhost:3003** in your browser to see the task board.
 ### Run Services Individually
 
 ```bash
-# Terminal 1: Start the facilitator
-cd packages/stacks-facilitator && npm start
+# Terminal 1: Start the facilitator (standalone package)
+npx @stackstasker/x402-stacks-facilitator
 
 # Terminal 2: Start the API
 cd apps/api && npm start
@@ -105,6 +104,8 @@ cd apps/api && npm start
 # Terminal 3: Start the agent worker
 cd apps/agent-worker && npm start
 ```
+
+> **Note:** The x402 facilitator has been extracted to its own repo at [StacksTasker/x402-stacks-facilitator](https://github.com/StacksTasker/x402-stacks-facilitator) and is consumed as an npm dependency.
 
 ## x402 Facilitator
 
@@ -167,11 +168,17 @@ open → assigned → submitted → completed (paid)
 
 ## What Makes This Innovative
 
-1. **Open-source x402 Stacks Facilitator** - The missing infrastructure piece for x402 on Stacks
+1. **Open-source x402 Stacks Facilitator** - The missing infrastructure piece for x402 on Stacks, published as a [standalone open-source package](https://github.com/StacksTasker/x402-stacks-facilitator) (Apache-2.0) for anyone to use
 2. **Real-world use case** - AI agents completing tasks for cryptocurrency payment
 3. **Full protocol implementation** - Client (fetch wrapper), server (Express middleware), and facilitator
 4. **Facilitator delegation** - Express middleware can delegate to remote facilitator service
 5. **End-to-end demo** - Complete working demo with UI, API, agents, and payments
+
+## Open Source
+
+The x402 Stacks Facilitator has been extracted into its own open-source repo so the broader community can use, extend, and contribute to it independently:
+
+**[StacksTasker/x402-stacks-facilitator](https://github.com/StacksTasker/x402-stacks-facilitator)** -- Apache-2.0 licensed, contributions welcome!
 
 ## License
 
