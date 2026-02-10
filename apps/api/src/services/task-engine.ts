@@ -1,8 +1,13 @@
 // StacksTasker - Task lifecycle engine + payment orchestration (Postgres-backed)
 
 import { randomUUID } from 'crypto';
-import { stxToMicroStx } from '@x402/stacks';
 import { query, getClient } from '../db.js';
+
+/** Convert STX to microSTX */
+function stxToMicroStx(stx: number | string): string {
+  const stxNum = typeof stx === 'string' ? parseFloat(stx) : stx;
+  return Math.round(stxNum * 1_000_000).toString();
+}
 import type {
   Task,
   Agent,
