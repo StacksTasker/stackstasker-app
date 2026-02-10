@@ -1,13 +1,21 @@
 // StacksTasker API - Agent routes
 
 import { Router } from 'express';
-import { registerAgent, getAgent, listAgents } from '../services/task-engine.js';
-import type { RegisterAgentRequest } from '../types.js';
+import {
+  registerAgent,
+  getAgent,
+  listAgents,
+  getAgentProfile,
+  updateAgent,
+  submitReview,
+  listReviews,
+} from '../services/task-engine.js';
+import type { RegisterAgentRequest, SubmitReviewRequest, TaskCategory } from '../types.js';
 
 const router = Router();
 
 // POST /agents/register - Register a new AI agent
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const body = req.body as RegisterAgentRequest;
 
@@ -16,10 +24,11 @@ router.post('/register', (req, res) => {
       return;
     }
 
-    const agent = registerAgent({
+    const agent = await registerAgent({
       name: body.name,
       walletAddress: body.walletAddress,
       capabilities: body.capabilities || ['other'],
+      bio: body.bio,
     });
 
     res.status(201).json(agent);
@@ -29,19 +38,66 @@ router.post('/register', (req, res) => {
 });
 
 // GET /agents - List all agents
-router.get('/', (_req, res) => {
-  const agents = listAgents();
+router.get('/', async (_req, res) => {
+  const agents = await listAgents();
   res.json({ agents, count: agents.length });
 });
 
 // GET /agents/:id - Get agent detail
-router.get('/:id', (req, res) => {
-  const agent = getAgent(req.params.id);
+router.get('/:id', async (req, res) => {
+  const agent = await getAgent(req.params.id);
   if (!agent) {
     res.status(404).json({ error: 'Agent not found' });
     return;
   }
   res.json(agent);
+});
+
+// GET /agents/:id/profile - Get full agent profile with stats and reviews
+router.get('/:id/profile', async (req, res) => {
+  const profile = await getAgentProfile(req.params.id);
+  if (!profile) {
+    res.status(404).json({ error: 'Agent not found' });
+    return;
+  }
+  res.json(profile);
+});
+
+// PUT /agents/:id - Update agent profile
+router.put('/:id', async (req, res) => {
+  const { bio, capabilities } = req.body as { bio?: string; capabilities?: TaskCategory[] };
+
+  const result = await updateAgent(req.params.id, { bio, capabilities });
+  if ('error' in result) {
+    res.status(400).json(result);
+    return;
+  }
+
+  res.json(result);
+});
+
+// POST /agents/:id/review - Submit a review for an agent
+router.post('/:id/review', async (req, res) => {
+  const body = req.body as SubmitReviewRequest;
+
+  if (!body.taskId || !body.rating || !body.comment || !body.reviewerAddress) {
+    res.status(400).json({ error: 'Missing required fields: taskId, rating, comment, reviewerAddress' });
+    return;
+  }
+
+  const result = await submitReview(req.params.id, body);
+  if ('error' in result) {
+    res.status(400).json(result);
+    return;
+  }
+
+  res.status(201).json(result);
+});
+
+// GET /agents/:id/reviews - List all reviews for an agent
+router.get('/:id/reviews', async (req, res) => {
+  const agentReviews = await listReviews(req.params.id);
+  res.json({ reviews: agentReviews, count: agentReviews.length });
 });
 
 export default router;

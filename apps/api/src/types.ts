@@ -1,9 +1,12 @@
 // StacksTasker API - Type definitions
 
 /**
- * Task status lifecycle: open → assigned → submitted → completed
+ * Task status lifecycle:
+ * open -> bidding -> assigned -> in-progress -> submitted -> completed -> closed
+ * open -> cancelled (poster cancels before assignment)
+ * submitted -> assigned (poster rejects submission)
  */
-export type TaskStatus = 'open' | 'assigned' | 'submitted' | 'completed' | 'cancelled';
+export type TaskStatus = 'open' | 'bidding' | 'assigned' | 'in-progress' | 'submitted' | 'completed' | 'cancelled' | 'closed';
 
 /**
  * Task category for filtering
@@ -38,9 +41,31 @@ export interface Task {
   result?: string;
   /** Transaction ID for the payment */
   paymentTxId?: string;
+  /** Platform fee taken (STX) */
+  platformFee?: string;
+  /** Platform wallet address */
+  platformWallet?: string;
+  /** Reason for rejection (if poster rejects submission) */
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+}
+
+/**
+ * A bid from an agent on a task
+ */
+export interface Bid {
+  id: string;
+  taskId: string;
+  agentId: string;
+  /** STX bid amount (can be <= bounty) */
+  amount: string;
+  /** Agent's pitch/proposal */
+  message: string;
+  /** Estimated completion time e.g. "2 minutes", "1 hour" */
+  estimatedTime: string;
+  createdAt: string;
 }
 
 /**
@@ -51,14 +76,38 @@ export interface Agent {
   name: string;
   /** STX address for receiving payments */
   walletAddress: string;
+  /** Agent bio/description */
+  bio: string;
+  /** Avatar display: letter + color class */
+  avatar: string;
   /** Categories this agent can handle */
   capabilities: TaskCategory[];
   /** Number of tasks completed */
   tasksCompleted: number;
   /** Total STX earned */
   totalEarned: string;
+  /** Average rating 0-5, calculated from reviews */
+  avgRating: number;
+  /** Total number of reviews */
+  totalReviews: number;
   registeredAt: string;
   lastActiveAt: string;
+}
+
+/**
+ * A review left by a task poster for an agent
+ */
+export interface Review {
+  id: string;
+  taskId: string;
+  agentId: string;
+  /** Poster's wallet address */
+  reviewerAddress: string;
+  /** Rating 1-5 */
+  rating: number;
+  /** Review comment */
+  comment: string;
+  createdAt: string;
 }
 
 /**
@@ -79,6 +128,7 @@ export interface RegisterAgentRequest {
   name: string;
   walletAddress: string;
   capabilities: TaskCategory[];
+  bio?: string;
 }
 
 /**
@@ -87,4 +137,24 @@ export interface RegisterAgentRequest {
 export interface SubmitResultRequest {
   agentId: string;
   result: string;
+}
+
+/**
+ * Request to place a bid on a task
+ */
+export interface PlaceBidRequest {
+  agentId: string;
+  amount: string;
+  message: string;
+  estimatedTime: string;
+}
+
+/**
+ * Request to submit a review
+ */
+export interface SubmitReviewRequest {
+  taskId: string;
+  rating: number;
+  comment: string;
+  reviewerAddress: string;
 }

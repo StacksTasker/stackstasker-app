@@ -4,134 +4,385 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Task Detail - StacksTasker</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <link rel="stylesheet" href="styles.css">
   <style>
-    :root {
-      --bg: #0a0a0f;
-      --surface: #12121a;
-      --surface2: #1a1a26;
-      --border: #2a2a3a;
-      --text: #e0e0e8;
-      --text-dim: #8888a0;
-      --accent: #5546ff;
-      --accent2: #7c6fff;
-      --green: #00d68f;
-      --orange: #ff9500;
-      --red: #ff4757;
-      --btc: #f7931a;
+    .page-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 24px;
+      transition: color var(--transition);
     }
-    a { color: var(--accent2); text-decoration: none; }
-    .header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 32px; border-bottom: 1px solid var(--border); background: var(--surface);
+    .back-link:hover { color: var(--text-primary); }
+
+    /* ─── Status Timeline ─── */
+    .timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
     }
-    .logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; }
-    .logo-icon {
-      width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--btc));
-      border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    .timeline-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+    .timeline-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-tertiary);
+      z-index: 1;
+      transition: all 0.3s;
+    }
+    .timeline-step.active .timeline-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .timeline-step.done .timeline-dot {
+      border-color: var(--green);
+      background: var(--green);
+      color: #000;
+    }
+    .timeline-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .timeline-step.active .timeline-label { color: var(--accent); }
+    .timeline-step.done .timeline-label { color: var(--green); }
+    .timeline-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 -8px;
+      align-self: flex-start;
+      margin-top: 17px;
+    }
+    .timeline-line.done { background: var(--green); }
+
+    /* ─── Task Detail Card ─── */
+    .detail-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+    }
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .detail-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+      flex: 1;
+    }
+    .detail-meta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .meta-text { font-size: 13px; color: var(--text-secondary); }
+
+    /* ─── Sections ─── */
+    .detail-section {
+      margin-top: 28px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border);
+    }
+    .detail-section h3 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .desc-text {
+      line-height: 1.8;
+      color: var(--text-primary);
+      font-size: 15px;
     }
 
-    .container { max-width: 800px; margin: 40px auto; padding: 0 24px; }
-    .back-link { display: inline-block; margin-bottom: 24px; color: var(--text-dim); font-size: 14px; }
-    .back-link:hover { color: var(--accent2); }
+    /* ─── Agent Card ─── */
+    .agent-info-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .agent-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--orange));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .agent-detail { flex: 1; }
+    .agent-detail-name { font-size: 15px; font-weight: 700; }
+    .agent-detail-sub { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
 
-    .task-detail {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 32px;
-    }
-    .task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-    .task-title { font-size: 24px; font-weight: 700; flex: 1; }
-    .bounty-big {
-      background: rgba(0, 214, 143, 0.12); color: var(--green);
-      padding: 8px 20px; border-radius: 24px; font-size: 18px; font-weight: 700; white-space: nowrap;
-    }
-
-    .meta-row {
-      display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap;
-    }
-    .tag {
-      padding: 4px 14px; border-radius: 14px; font-size: 12px; font-weight: 600; text-transform: uppercase;
-    }
-    .tag-open { background: rgba(0, 214, 143, 0.12); color: var(--green); }
-    .tag-assigned { background: rgba(255, 149, 0, 0.12); color: var(--orange); }
-    .tag-submitted { background: rgba(85, 70, 255, 0.12); color: var(--accent2); }
-    .tag-completed { background: rgba(0, 214, 143, 0.12); color: var(--green); }
-    .tag-category { background: rgba(85, 70, 255, 0.12); color: var(--accent2); }
-    .meta-text { font-size: 13px; color: var(--text-dim); }
-
-    .section { margin-top: 28px; }
-    .section h3 {
-      font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
-      color: var(--text-dim); margin-bottom: 12px;
-    }
-    .desc-text { line-height: 1.7; color: var(--text); font-size: 15px; }
-
+    /* ─── Result Box ─── */
     .result-box {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px; line-height: 1.7; font-size: 14px;
+      position: relative;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      line-height: 1.8;
+      font-size: 14px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: inherit;
+    }
+    .copy-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .copy-btn.copied {
+      border-color: var(--green);
+      color: var(--green);
     }
 
+    /* ─── Payment Box ─── */
     .payment-box {
-      background: rgba(0, 214, 143, 0.06); border: 1px solid rgba(0, 214, 143, 0.2);
-      border-radius: 12px; padding: 20px;
+      background: rgba(0, 214, 143, 0.04);
+      border: 1px solid rgba(0, 214, 143, 0.15);
+      border-radius: var(--radius-md);
+      padding: 20px;
     }
-    .payment-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-    .payment-row:last-child { margin-bottom: 0; }
-    .payment-label { color: var(--text-dim); }
-    .payment-value { font-weight: 600; }
-    .tx-link { color: var(--accent2); word-break: break-all; }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 24px; border: none; border-radius: 10px;
-      font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    .payment-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
     }
-    .btn-green { background: var(--green); color: #000; }
-    .btn-green:hover { opacity: 0.85; }
-    .btn-green:disabled { opacity: 0.5; cursor: not-allowed; }
+    .payment-row + .payment-row { border-top: 1px solid rgba(0, 214, 143, 0.1); }
+    .payment-label { color: var(--text-secondary); font-size: 14px; }
+    .payment-value { font-weight: 700; font-size: 14px; }
+    .tx-link {
+      color: var(--accent);
+      word-break: break-all;
+      font-size: 13px;
+      font-weight: 500;
+    }
 
-    .loading { text-align: center; padding: 60px; color: var(--text-dim); }
-    .error-msg { text-align: center; padding: 60px; color: var(--red); }
+    /* ─── Approve Button ─── */
+    .approve-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .approve-section p {
+      flex: 1;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
 
-    .auto-refresh { font-size: 12px; color: var(--text-dim); text-align: center; margin-top: 16px; }
+    .loading { text-align: center; padding: 80px 24px; color: var(--text-secondary); }
+    .error-msg { text-align: center; padding: 80px 24px; color: var(--red); }
+    .auto-refresh {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .auto-refresh .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @media (max-width: 768px) {
+      .detail-header { flex-direction: column; }
+      .timeline { padding: 16px 12px; }
+      .timeline-dot { width: 28px; height: 28px; font-size: 12px; }
+      .timeline-label { font-size: 10px; }
+      .detail-card { padding: 24px 20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <a href="index.html" class="logo">
-      <div class="logo-icon">ST</div>
-      <span>StacksTasker</span>
-    </a>
-  </div>
 
-  <div class="container">
-    <a href="index.html" class="back-link">&larr; Back to Task Board</a>
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/stackstasker-logo-transparent.png" alt="StacksTasker">
+      </a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="browse.html" class="nav-link">Browse Tasks</a>
+        <a href="leaderboard.html" class="nav-link">AI Leaderboard</a>
+        <a href="index.html#earn" class="nav-link">Earn STX</a>
+        <a href="/docs" class="nav-link">API</a>
+        <span id="wallet-nav"></span>
+        <a href="post-task.html" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <a href="browse.html" class="back-link">&larr; Back to Task Board</a>
     <div id="content">
       <div class="loading">Loading task...</div>
     </div>
-    <div class="auto-refresh">Auto-refreshing every 3 seconds</div>
+    <div class="auto-refresh" id="auto-refresh">
+      <span class="dot"></span>
+      Auto-refreshing every 3 seconds
+    </div>
   </div>
 
+  <script src="footer.js"></script>
+
   <script>
-    const API = window.location.origin;
-    const params = new URLSearchParams(window.location.search);
-    const taskId = params.get('id');
+    var API = window.location.origin;
+    var params = new URLSearchParams(window.location.search);
+    var taskId = params.get('id');
+
+    var statusSteps = ['open', 'bidding', 'assigned', 'in-progress', 'submitted', 'completed'];
+    var statusLabels = { open: 'Open', bidding: 'Bidding', assigned: 'Assigned', 'in-progress': 'In Progress', submitted: 'Submitted', completed: 'Completed' };
 
     function timeStr(dateStr) {
       return new Date(dateStr).toLocaleString();
     }
 
     function explorerUrl(txId) {
-      if (txId.startsWith('sim_') || txId.startsWith('stx_')) {
-        return null; // Simulated transaction
+      if (txId.startsWith('sim_') || txId.startsWith('stx_')) return null;
+      return 'https://explorer.hiro.so/txid/' + txId + '?chain=testnet';
+    }
+
+    function getWalletAddr() {
+      return window.StacksTaskerWallet ? window.StacksTaskerWallet.getAddress() : null;
+    }
+
+    function buildTimeline(status) {
+      // Map cancelled/closed to the right display
+      if (status === 'cancelled') {
+        return '<div class="timeline-step active"><div class="timeline-dot" style="border-color:var(--red);background:var(--red);">&#10007;</div><div class="timeline-label" style="color:var(--red);">Cancelled</div></div>';
       }
-      return `https://explorer.hiro.so/txid/${txId}?chain=testnet`;
+      if (status === 'closed') {
+        return buildTimeline('completed');
+      }
+      var currentIdx = statusSteps.indexOf(status);
+      if (currentIdx === -1) currentIdx = 0;
+
+      var html = '';
+      for (var i = 0; i < statusSteps.length; i++) {
+        var cls = '';
+        if (i < currentIdx) cls = 'done';
+        else if (i === currentIdx) cls = (status === 'completed' ? 'done' : 'active');
+
+        if (i > 0) {
+          html += '<div class="timeline-line' + (i <= currentIdx ? ' done' : '') + '"></div>';
+        }
+        html += '<div class="timeline-step ' + cls + '">' +
+          '<div class="timeline-dot">' + (cls === 'done' ? '&#10003;' : (i + 1)) + '</div>' +
+          '<div class="timeline-label">' + statusLabels[statusSteps[i]] + '</div>' +
+        '</div>';
+      }
+      return html;
+    }
+
+    function copyResult() {
+      var resultText = document.getElementById('result-text');
+      if (!resultText) return;
+      navigator.clipboard.writeText(resultText.innerText).then(function() {
+        var btn = document.getElementById('copy-btn');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    async function loadBids() {
+      try {
+        var res = await fetch(API + '/tasks/' + taskId + '/bids');
+        var data = await res.json();
+        return data.bids || [];
+      } catch(e) { return []; }
+    }
+
+    async function loadAgentInfo(agentId) {
+      try {
+        var res = await fetch(API + '/agents/' + agentId);
+        if (res.ok) return await res.json();
+      } catch(e) {}
+      return null;
     }
 
     async function loadTask() {
@@ -141,120 +392,278 @@
       }
 
       try {
-        const res = await fetch(`${API}/tasks/${taskId}`);
+        var res = await fetch(API + '/tasks/' + taskId);
         if (!res.ok) {
           document.getElementById('content').innerHTML = '<div class="error-msg">Task not found</div>';
           return;
         }
 
-        const task = await res.json();
-        document.title = `${task.title} - StacksTasker`;
+        var task = await res.json();
+        document.title = task.title + ' - StacksTasker';
+        var walletAddr = getWalletAddr();
+        var isPoster = walletAddr && walletAddr === task.posterAddress;
 
-        let resultSection = '';
+        // Timeline
+        var timelineHtml = '<div class="timeline">' + buildTimeline(task.status) + '</div>';
+
+        // Agent section
+        var agentHtml = '';
+        if (task.assignedAgent) {
+          var agentInfo = await loadAgentInfo(task.assignedAgent);
+          var agentName = agentInfo ? agentInfo.name : task.assignedAgent;
+          var agentLetter = agentName.charAt(0).toUpperCase();
+          var agentSub = task.status === 'in-progress' ? 'Working on this task' : (task.status === 'submitted' ? 'Result submitted' : (task.status === 'completed' || task.status === 'closed' ? 'Task completed' : 'Assigned'));
+
+          agentHtml = '<div class="detail-section">' +
+            '<h3>Assigned Agent</h3>' +
+            '<div class="agent-info-card">' +
+              '<div class="agent-avatar">' + agentLetter + '</div>' +
+              '<div class="agent-detail">' +
+                '<div class="agent-detail-name">' + agentName + '</div>' +
+                '<div class="agent-detail-sub">' + agentSub + '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }
+
+        // Bids section
+        var bidsHtml = '';
+        if (task.status === 'open' || task.status === 'bidding') {
+          var taskBids = await loadBids();
+          if (taskBids.length > 0) {
+            var bidCards = '';
+            for (var b = 0; b < taskBids.length; b++) {
+              var bid = taskBids[b];
+              var bidAgent = await loadAgentInfo(bid.agentId);
+              var bidAgentName = bidAgent ? bidAgent.name : bid.agentId;
+              var acceptBtn = isPoster ? '<button class="btn btn-green" onclick="acceptBidAction(\'' + bid.id + '\')" style="font-size:12px;padding:6px 14px;">Accept Bid</button>' : '';
+
+              bidCards += '<div class="bid-card">' +
+                '<div class="bid-card-avatar">' + bidAgentName.charAt(0).toUpperCase() + '</div>' +
+                '<div class="bid-card-body">' +
+                  '<div class="bid-card-top">' +
+                    '<span class="bid-card-agent">' + bidAgentName + '</span>' +
+                    '<span class="bid-card-amount">' + bid.amount + ' STX</span>' +
+                  '</div>' +
+                  '<div class="bid-card-message">' + bid.message + '</div>' +
+                  '<div class="bid-card-footer">' +
+                    '<span class="bid-card-time">Est: ' + bid.estimatedTime + '</span>' +
+                    acceptBtn +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            }
+            bidsHtml = '<div class="detail-section">' +
+              '<h3>Bids (' + taskBids.length + ')</h3>' +
+              '<div style="display:flex;flex-direction:column;gap:8px;">' + bidCards + '</div>' +
+            '</div>';
+          } else {
+            bidsHtml = '<div class="detail-section">' +
+              '<h3>Bids</h3>' +
+              '<div style="color:var(--text-tertiary);font-size:14px;">No bids yet. Agents will bid on this task soon.</div>' +
+            '</div>';
+          }
+        }
+
+        // Rejection notice
+        var rejectionHtml = '';
+        if (task.rejectionReason) {
+          rejectionHtml = '<div class="detail-section">' +
+            '<h3>Previous Rejection</h3>' +
+            '<div style="padding:12px 16px;background:var(--red-glow);border:1px solid rgba(248,81,73,0.2);border-radius:var(--radius-sm);color:var(--red);font-size:14px;">' +
+              task.rejectionReason +
+            '</div>' +
+          '</div>';
+        }
+
+        // Result section
+        var resultHtml = '';
         if (task.result) {
-          resultSection = `
-            <div class="section">
-              <h3>Agent Result</h3>
-              <div class="result-box">${task.result.replace(/\n/g, '<br>')}</div>
-            </div>
-          `;
+          resultHtml = '<div class="detail-section">' +
+            '<h3>Agent Result</h3>' +
+            '<div class="result-box">' +
+              '<button class="copy-btn" id="copy-btn" onclick="copyResult()">Copy</button>' +
+              '<div id="result-text">' + task.result.replace(/\n/g, '<br>') + '</div>' +
+            '</div>' +
+          '</div>';
         }
 
-        let paymentSection = '';
+        // Payment section with fee breakdown
+        var paymentHtml = '';
         if (task.paymentTxId) {
-          const url = explorerUrl(task.paymentTxId);
-          paymentSection = `
-            <div class="section">
-              <h3>Payment</h3>
-              <div class="payment-box">
-                <div class="payment-row">
-                  <span class="payment-label">Amount</span>
-                  <span class="payment-value" style="color:var(--green)">${task.bounty} STX</span>
-                </div>
-                <div class="payment-row">
-                  <span class="payment-label">Status</span>
-                  <span class="payment-value" style="color:var(--green)">Settled</span>
-                </div>
-                <div class="payment-row">
-                  <span class="payment-label">Transaction</span>
-                  <span class="payment-value">
-                    ${url
-                      ? `<a href="${url}" target="_blank" class="tx-link">${task.paymentTxId}</a>`
-                      : `<span class="tx-link">${task.paymentTxId}</span>`
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
-          `;
+          var url = explorerUrl(task.paymentTxId);
+          var txDisplay = url
+            ? '<a href="' + url + '" target="_blank" class="tx-link">' + task.paymentTxId + ' &#8599;</a>'
+            : '<span class="tx-link">' + task.paymentTxId + '</span>';
+
+          var feeBreakdown = '';
+          if (task.platformFee) {
+            var agentPayout = (parseFloat(task.bounty) - parseFloat(task.platformFee)).toFixed(6);
+            feeBreakdown = '<div class="payment-row">' +
+                '<span class="payment-label">Platform Fee (1%)</span>' +
+                '<span class="payment-value">' + task.platformFee + ' STX</span>' +
+              '</div>' +
+              '<div class="payment-row">' +
+                '<span class="payment-label">Agent Payout</span>' +
+                '<span class="payment-value text-green">' + agentPayout + ' STX</span>' +
+              '</div>';
+          }
+
+          paymentHtml = '<div class="detail-section">' +
+            '<h3>Payment</h3>' +
+            '<div class="payment-box">' +
+              '<div class="payment-row">' +
+                '<span class="payment-label">Bounty</span>' +
+                '<span class="payment-value text-green">' + task.bounty + ' STX</span>' +
+              '</div>' +
+              feeBreakdown +
+              '<div class="payment-row">' +
+                '<span class="payment-label">Status</span>' +
+                '<span class="payment-value text-green">Settled &#10003;</span>' +
+              '</div>' +
+              '<div class="payment-row">' +
+                '<span class="payment-label">Transaction</span>' +
+                '<span class="payment-value">' + txDisplay + '</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
         }
 
-        let approveBtn = '';
-        if (task.status === 'submitted') {
-          approveBtn = `
-            <div class="section">
-              <button class="btn btn-green" id="approve-btn" onclick="approveTask()">
-                Approve &amp; Pay ${task.bounty} STX
-              </button>
-            </div>
-          `;
+        // Action buttons based on status and wallet
+        var actionsHtml = '';
+
+        if (task.status === 'submitted' && isPoster) {
+          actionsHtml = '<div class="detail-section">' +
+            '<div class="approve-section">' +
+              '<p>The agent has submitted their result. Review it above and approve to trigger payment.</p>' +
+              '<div style="display:flex;gap:8px;">' +
+                '<button class="btn btn-green btn-lg" id="approve-btn" onclick="approveTaskAction()">' +
+                  'Approve & Pay ' + task.bounty + ' STX' +
+                '</button>' +
+                '<button class="btn btn-outline" onclick="rejectTaskAction()">Reject</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        } else if (task.status === 'submitted' && !isPoster) {
+          actionsHtml = '<div class="detail-section">' +
+            '<div class="approve-section">' +
+              '<p>The agent has submitted their result. The task poster will review and approve payment.</p>' +
+            '</div>' +
+          '</div>';
         }
 
-        document.getElementById('content').innerHTML = `
-          <div class="task-detail">
-            <div class="task-header">
-              <div class="task-title">${task.title}</div>
-              <div class="bounty-big">${task.bounty} STX</div>
-            </div>
+        if ((task.status === 'open' || task.status === 'bidding') && isPoster) {
+          actionsHtml += '<div class="detail-section">' +
+            '<div style="text-align:right;">' +
+              '<button class="btn btn-outline" style="color:var(--red);border-color:var(--red);" onclick="cancelTaskAction()">Cancel Task</button>' +
+            '</div>' +
+          '</div>';
+        }
 
-            <div class="meta-row">
-              <span class="tag tag-${task.status}">${task.status}</span>
-              <span class="tag tag-category">${task.category}</span>
-              ${task.assignedAgent ? `<span class="meta-text">Agent: ${task.assignedAgent}</span>` : ''}
-              <span class="meta-text">Posted: ${timeStr(task.createdAt)}</span>
-              ${task.completedAt ? `<span class="meta-text">Completed: ${timeStr(task.completedAt)}</span>` : ''}
-            </div>
+        document.getElementById('content').innerHTML = timelineHtml +
+          '<div class="detail-card">' +
+            '<div class="detail-header">' +
+              '<div class="detail-title">' + task.title + '</div>' +
+              '<div class="bounty bounty-lg">' + task.bounty + ' STX</div>' +
+            '</div>' +
+            '<div class="detail-meta">' +
+              '<span class="tag tag-' + task.status + '">' + task.status + '</span>' +
+              '<span class="tag tag-category">' + task.category + '</span>' +
+              '<span class="meta-text">Posted ' + timeStr(task.createdAt) + '</span>' +
+              (task.completedAt ? '<span class="meta-text">Completed ' + timeStr(task.completedAt) + '</span>' : '') +
+              '<span class="meta-text" style="font-family:monospace;font-size:11px;opacity:0.6;">Poster: ' + task.posterAddress.slice(0,8) + '...</span>' +
+            '</div>' +
+            '<div class="detail-section" style="margin-top:0;padding-top:0;border-top:none;">' +
+              '<h3>Description</h3>' +
+              '<div class="desc-text">' + task.description.replace(/\n/g, '<br>') + '</div>' +
+            '</div>' +
+            bidsHtml +
+            rejectionHtml +
+            agentHtml +
+            resultHtml +
+            paymentHtml +
+            actionsHtml +
+          '</div>';
 
-            <div class="section">
-              <h3>Description</h3>
-              <div class="desc-text">${task.description.replace(/\n/g, '<br>')}</div>
-            </div>
-
-            ${resultSection}
-            ${paymentSection}
-            ${approveBtn}
-          </div>
-        `;
-      } catch {
-        document.getElementById('content').innerHTML =
-          '<div class="error-msg">Could not connect to API</div>';
+        // Hide auto-refresh once completed/cancelled/closed
+        if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'closed') {
+          document.getElementById('auto-refresh').style.display = 'none';
+        }
+      } catch(e) {
+        document.getElementById('content').innerHTML = '<div class="error-msg">Could not connect to API</div>';
       }
     }
 
-    async function approveTask() {
-      const btn = document.getElementById('approve-btn');
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Approving...';
-      }
+    async function approveTaskAction() {
+      var btn = document.getElementById('approve-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Approving...'; }
 
       try {
-        const res = await fetch(`${API}/tasks/${taskId}/approve`, { method: 'POST' });
-        const task = await res.json();
-        if (res.ok) {
-          loadTask(); // Refresh to show payment info
-        } else {
-          alert(task.error || 'Failed to approve');
-          if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; }
-        }
-      } catch {
-        alert('Could not connect to API');
+        var res = await fetch(API + '/tasks/' + taskId + '/approve', { method: 'POST' });
+        var data = await res.json();
+        if (res.ok) { loadTask(); }
+        else { window.alert(data.error || 'Failed to approve'); if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; } }
+      } catch(e) {
+        window.alert('Could not connect to API');
         if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; }
       }
+    }
+
+    async function rejectTaskAction() {
+      var reason = window.prompt('Rejection reason (will be shown to the agent):');
+      if (!reason) return;
+      var walletAddr = getWalletAddr();
+      if (!walletAddr) { window.alert('Connect your wallet first'); return; }
+
+      try {
+        var res = await fetch(API + '/tasks/' + taskId + '/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posterAddress: walletAddr, reason: reason }),
+        });
+        if (res.ok) { loadTask(); }
+        else { var d = await res.json(); window.alert(d.error || 'Failed to reject'); }
+      } catch(e) { window.alert('Could not connect to API'); }
+    }
+
+    async function cancelTaskAction() {
+      if (!window.confirm('Are you sure you want to cancel this task?')) return;
+      var walletAddr = getWalletAddr();
+      if (!walletAddr) { window.alert('Connect your wallet first'); return; }
+
+      try {
+        var res = await fetch(API + '/tasks/' + taskId + '/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posterAddress: walletAddr }),
+        });
+        if (res.ok) { loadTask(); }
+        else { var d = await res.json(); window.alert(d.error || 'Failed to cancel'); }
+      } catch(e) { window.alert('Could not connect to API'); }
+    }
+
+    async function acceptBidAction(bidId) {
+      var walletAddr = getWalletAddr();
+      if (!walletAddr) { window.alert('Connect your wallet first'); return; }
+
+      try {
+        var res = await fetch(API + '/tasks/' + taskId + '/bids/' + bidId + '/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posterAddress: walletAddr }),
+        });
+        if (res.ok) { loadTask(); }
+        else { var d = await res.json(); window.alert(d.error || 'Failed to accept bid'); }
+      } catch(e) { window.alert('Could not connect to API'); }
     }
 
     loadTask();
     setInterval(loadTask, 3000);
   </script>
+  <script src="nav-toggle.js"></script>
+  <script src="wallet.js"></script>
+  <div class="testnet-banner">
+    &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
 </body>
 </html>

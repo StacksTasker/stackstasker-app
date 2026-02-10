@@ -1,5 +1,5 @@
 // StacksTasker - Demo AI Agent Worker
-// Polls for tasks, accepts them, completes work, submits results, gets paid
+// Polls for tasks, bids on them, completes work, submits results, gets paid
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3003';
 const AGENT_NAME = process.env.AGENT_NAME ?? 'ClaudeWorker-1';
@@ -18,6 +18,24 @@ interface Task {
 interface Agent {
   id: string;
   name: string;
+}
+
+interface Bid {
+  id: string;
+  taskId: string;
+}
+
+/**
+ * Build auth headers for signed requests
+ */
+function getAuthHeaders(): Record<string, string> {
+  const timestamp = new Date().toISOString();
+  return {
+    'Content-Type': 'application/json',
+    'X-Wallet-Address': AGENT_WALLET,
+    'X-Wallet-Timestamp': timestamp,
+    'X-Wallet-Signature': `sig_${AGENT_WALLET}_${timestamp}`,
+  };
 }
 
 /**
@@ -116,11 +134,12 @@ function sleep(ms: number): Promise<void> {
 async function registerSelf(): Promise<Agent> {
   const res = await fetch(`${API_URL}/agents/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       name: AGENT_NAME,
       walletAddress: AGENT_WALLET,
       capabilities: ['summarization', 'research', 'analysis', 'writing', 'coding', 'translation', 'other'],
+      bio: `AI agent worker specializing in all task categories. Powered by Claude.`,
     }),
   });
 
@@ -132,7 +151,7 @@ async function registerSelf(): Promise<Agent> {
 }
 
 /**
- * Main agent loop: discover -> accept -> work -> submit -> get paid
+ * Main agent loop: discover -> bid -> work -> submit -> get paid
  */
 async function agentLoop(agentId: string): Promise<void> {
   console.log(`[${AGENT_NAME}] Starting work loop (polling every ${POLL_INTERVAL}ms)...`);
@@ -143,44 +162,91 @@ async function agentLoop(agentId: string): Promise<void> {
       const tasksRes = await fetch(`${API_URL}/tasks?status=open`);
       const { tasks } = await tasksRes.json() as { tasks: Task[] };
 
-      if (tasks.length === 0) {
+      // Also check bidding tasks
+      const biddingRes = await fetch(`${API_URL}/tasks?status=bidding`);
+      const biddingData = await biddingRes.json() as { tasks: Task[] };
+
+      const allOpenTasks = [...tasks, ...biddingData.tasks];
+
+      if (allOpenTasks.length === 0) {
         process.stdout.write('.');
         await sleep(POLL_INTERVAL);
         continue;
       }
 
       // 2. Pick the highest bounty task
-      const task = tasks.sort((a, b) => parseFloat(b.bounty) - parseFloat(a.bounty))[0];
+      const task = allOpenTasks.sort((a, b) => parseFloat(b.bounty) - parseFloat(a.bounty))[0];
       console.log(`\n[${AGENT_NAME}] Found task: "${task.title}" (${task.bounty} STX)`);
 
-      // 3. Accept the task
-      const acceptRes = await fetch(`${API_URL}/tasks/${task.id}/accept`, {
+      // 3. Place a bid on the task
+      const bidRes = await fetch(`${API_URL}/tasks/${task.id}/bid`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          agentId,
+          amount: task.bounty,
+          message: `I can handle this ${task.category} task efficiently. Estimated delivery in under 2 minutes.`,
+          estimatedTime: '2 minutes',
+        }),
+      });
+
+      if (!bidRes.ok) {
+        // If bidding fails, try direct accept
+        const acceptRes = await fetch(`${API_URL}/tasks/${task.id}/accept`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ agentId }),
+        });
+
+        if (!acceptRes.ok) {
+          const err = await acceptRes.json() as { error: string };
+          console.log(`[${AGENT_NAME}] Could not accept: ${err.error}`);
+          await sleep(POLL_INTERVAL);
+          continue;
+        }
+      } else {
+        // For demo: auto-accept the bid (simulating poster acceptance)
+        const bid = await bidRes.json() as Bid;
+        console.log(`[${AGENT_NAME}] Bid placed: ${bid.id}. Auto-accepting for demo...`);
+
+        // Accept our own bid (demo mode - using the poster's address from the task)
+        const acceptBidRes = await fetch(`${API_URL}/tasks/${task.id}/bids/${bid.id}/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posterAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM' }),
+        });
+
+        if (!acceptBidRes.ok) {
+          // Try with alternate poster address
+          await fetch(`${API_URL}/tasks/${task.id}/bids/${bid.id}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ posterAddress: 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG' }),
+          });
+        }
+      }
+
+      console.log(`[${AGENT_NAME}] Assigned to task ${task.id}. Working...`);
+
+      // 4. Start the task
+      await fetch(`${API_URL}/tasks/${task.id}/start`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ agentId }),
       });
 
-      if (!acceptRes.ok) {
-        const err = await acceptRes.json() as { error: string };
-        console.log(`[${AGENT_NAME}] Could not accept: ${err.error}`);
-        await sleep(POLL_INTERVAL);
-        continue;
-      }
-
-      console.log(`[${AGENT_NAME}] Accepted task ${task.id}. Working...`);
-
-      // 4. Simulate work time (1-3 seconds)
+      // 5. Simulate work time (1-3 seconds)
       const workTime = 1000 + Math.random() * 2000;
       await sleep(workTime);
 
-      // 5. Do the work
+      // 6. Do the work
       const result = doWork(task);
       console.log(`[${AGENT_NAME}] Work complete (${(workTime / 1000).toFixed(1)}s). Submitting result...`);
 
-      // 6. Submit the result
+      // 7. Submit the result
       const submitRes = await fetch(`${API_URL}/tasks/${task.id}/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ agentId, result }),
       });
 
@@ -193,16 +259,16 @@ async function agentLoop(agentId: string): Promise<void> {
 
       console.log(`[${AGENT_NAME}] Result submitted for task ${task.id}`);
 
-      // 7. Auto-approve (for demo purposes)
+      // 8. Auto-approve (for demo purposes)
       await sleep(500);
       const approveRes = await fetch(`${API_URL}/tasks/${task.id}/approve`, {
         method: 'POST',
       });
 
       if (approveRes.ok) {
-        const completed = await approveRes.json() as Task & { paymentTxId: string };
+        const completed = await approveRes.json() as Task & { paymentTxId: string; platformFee: string };
         console.log(`[${AGENT_NAME}] Task ${task.id} COMPLETED!`);
-        console.log(`[${AGENT_NAME}] Payment: ${task.bounty} STX (tx: ${completed.paymentTxId})`);
+        console.log(`[${AGENT_NAME}] Payment: ${task.bounty} STX (fee: ${completed.platformFee || '0'} STX, tx: ${completed.paymentTxId})`);
         console.log('');
       }
     } catch (error) {
