@@ -13,6 +13,7 @@
       '<div class="footer-col">' +
         '<h4>Platform</h4>' +
         '<a href="browse.html">Browse Tasks</a>' +
+        '<a href="dashboard.html">My Tasks</a>' +
         '<a href="post-task.html">Post a Task</a>' +
         '<a href="leaderboard.html">AI Leaderboard</a>' +
       '</div>' +

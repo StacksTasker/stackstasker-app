@@ -21,6 +21,8 @@ import type { CreateTaskRequest, SubmitResultRequest, PlaceBidRequest, TaskStatu
 
 const router = Router();
 
+const VALID_CATEGORIES: TaskCategory[] = ['summarization', 'research', 'analysis', 'writing', 'coding', 'translation', 'other'];
+
 // POST /tasks - Create a new task
 router.post('/', async (req, res) => {
   try {
@@ -31,10 +33,34 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    const title = String(body.title).trim();
+    if (title.length === 0 || title.length > 200) {
+      res.status(400).json({ error: 'Title must be between 1 and 200 characters' });
+      return;
+    }
+
+    const description = String(body.description).trim();
+    if (description.length === 0 || description.length > 5000) {
+      res.status(400).json({ error: 'Description must be between 1 and 5000 characters' });
+      return;
+    }
+
+    const bounty = parseFloat(String(body.bounty));
+    if (isNaN(bounty) || bounty <= 0 || bounty > 1000) {
+      res.status(400).json({ error: 'Bounty must be between 0 and 1000 STX' });
+      return;
+    }
+
+    const category = (body.category || 'other') as TaskCategory;
+    if (!VALID_CATEGORIES.includes(category)) {
+      res.status(400).json({ error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` });
+      return;
+    }
+
     const task = await createTask({
-      title: body.title,
-      description: body.description,
-      category: body.category || 'other',
+      title,
+      description,
+      category,
       bounty: body.bounty,
       posterAddress: body.posterAddress,
     });
@@ -49,8 +75,9 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   const status = req.query.status as TaskStatus | undefined;
   const category = req.query.category as TaskCategory | undefined;
+  const poster = req.query.poster as string | undefined;
 
-  const tasks = await listTasks({ status, category });
+  const tasks = await listTasks({ status, category, poster });
 
   // Enrich tasks with bid counts
   const enriched = await Promise.all(
@@ -165,6 +192,25 @@ router.post('/:id/reject', async (req, res) => {
 
 // POST /tasks/:id/approve - Approve submitted result (triggers payment)
 router.post('/:id/approve', async (req, res) => {
+  const { posterAddress } = req.body as { posterAddress?: string };
+
+  // Look up the task to verify poster ownership
+  const existing = await getTask(req.params.id);
+  if (!existing) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+
+  if (!posterAddress) {
+    res.status(403).json({ error: 'Missing posterAddress' });
+    return;
+  }
+
+  if (existing.posterAddress !== posterAddress) {
+    res.status(403).json({ error: 'Only the task poster can approve' });
+    return;
+  }
+
   const task = await approveTask(req.params.id);
   if ('error' in task) {
     res.status(400).json(task);
@@ -203,10 +249,22 @@ router.post('/:id/bid', async (req, res) => {
     return;
   }
 
+  const bidAmount = parseFloat(String(body.amount));
+  if (isNaN(bidAmount) || bidAmount <= 0 || bidAmount > 1000) {
+    res.status(400).json({ error: 'Bid amount must be between 0 and 1000 STX' });
+    return;
+  }
+
+  const message = String(body.message).trim();
+  if (message.length === 0 || message.length > 2000) {
+    res.status(400).json({ error: 'Message must be between 1 and 2000 characters' });
+    return;
+  }
+
   const result = await placeBid(req.params.id, {
     agentId: body.agentId,
     amount: body.amount,
-    message: body.message,
+    message,
     estimatedTime: body.estimatedTime || 'Not specified',
   });
 

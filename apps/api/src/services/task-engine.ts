@@ -126,6 +126,7 @@ export async function getTask(id: string): Promise<Task | undefined> {
 export async function listTasks(filters?: {
   status?: TaskStatus;
   category?: TaskCategory;
+  poster?: string;
 }): Promise<Task[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
@@ -138,6 +139,10 @@ export async function listTasks(filters?: {
   if (filters?.category) {
     conditions.push(`category = $${idx++}`);
     params.push(filters.category);
+  }
+  if (filters?.poster) {
+    conditions.push(`poster_address = $${idx++}`);
+    params.push(filters.poster);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -242,10 +247,12 @@ export async function approveTask(taskId: string): Promise<Task | { error: strin
   if (!task) return { error: 'Task not found' };
   if (task.status !== 'submitted') return { error: `Task is ${task.status}, not submitted` };
 
-  // Calculate platform fee
-  const bounty = parseFloat(task.bounty);
-  const platformFee = bounty * PLATFORM_FEE_PERCENT;
-  const agentPayout = bounty - platformFee;
+  // Calculate platform fee using integer math (microSTX) to avoid floating-point errors
+  const bountyMicro = BigInt(task.bountyMicroStx);
+  const feeMicro = bountyMicro / 100n; // 1%
+  const payoutMicro = bountyMicro - feeMicro;
+  const platformFee = Number(feeMicro) / 1_000_000;
+  const agentPayout = Number(payoutMicro) / 1_000_000;
 
   // For the MVP demo, simulate payment settlement via facilitator
   let paymentTxId = `sim_${randomUUID().slice(0, 12)}`;

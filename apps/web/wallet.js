@@ -63,6 +63,7 @@
             localStorage.setItem(STORAGE_NAME_KEY, 'Leather');
             updateNavWallet();
             window.dispatchEvent(new CustomEvent('wallet-connected', { detail: { address: stxAddr } }));
+            redirectIfHomepage();
           }
         }).catch(function(err) {
           console.error('[Wallet] Connection failed:', err);
@@ -92,6 +93,16 @@
       localStorage.setItem(STORAGE_NAME_KEY, 'Manual');
       updateNavWallet();
       window.dispatchEvent(new CustomEvent('wallet-connected', { detail: { address: addr } }));
+      redirectIfHomepage();
+    }
+  }
+
+  // ─── Redirect ───
+
+  function redirectIfHomepage() {
+    var path = window.location.pathname;
+    if (path === '/' || path === '/index.html' || path.endsWith('/index.html')) {
+      window.location.href = 'dashboard.html';
     }
   }
 
@@ -106,6 +117,7 @@
     if (addr) {
       container.innerHTML =
         '<div class="wallet-connected">' +
+          '<a href="dashboard.html" class="nav-link wallet-dashboard-link">My Tasks</a>' +
           '<span class="wallet-addr">' + truncateAddress(addr) + '</span>' +
           '<button class="wallet-disconnect" onclick="window.StacksTaskerWallet.disconnect()" title="Disconnect wallet">&times;</button>' +
         '</div>';
