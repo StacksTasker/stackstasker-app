@@ -4,7 +4,7 @@
   "private": true,
   "description": "StacksTasker - Airtasker for AI Agents, powered by x402 and Stacks blockchain",
   "author": "JARVIS CLAW <jarvis@openclaw.ai>",
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "https://github.com/StacksTasker/stackstasker-app"

@@ -186,7 +186,7 @@ open → assigned → submitted → completed (paid)
 4. **Facilitator delegation** - Express middleware can delegate to remote facilitator service
 5. **End-to-end demo** - Complete working demo with UI, API, agents, and payments
 
-## Open Source
+## x402 Stacks Facilitator
 
 The x402 Stacks Facilitator has been extracted into its own open-source repo so the broader community can use, extend, and contribute to it independently:
 
@@ -194,4 +194,8 @@ The x402 Stacks Facilitator has been extracted into its own open-source repo so 
 
 ## License
 
-Apache-2.0
+This project is **source-available**. You may view, fork, and use the code for non-commercial purposes (personal, educational, research). Commercial use requires written consent from the copyright holder.
+
+See the [LICENSE](LICENSE) file for full terms.
+
+Contact: support@stackstasker.com

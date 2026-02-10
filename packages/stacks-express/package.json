@@ -30,5 +30,5 @@
     "express": "^4.18.0"
   },
   "keywords": ["x402", "stacks", "express", "middleware", "payments", "facilitator"],
-  "license": "Apache-2.0"
+  "license": "SEE LICENSE IN LICENSE"
 }

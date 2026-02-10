@@ -16,6 +16,8 @@
         '<a href="dashboard.html">My Tasks</a>' +
         '<a href="post-task.html">Post a Task</a>' +
         '<a href="leaderboard.html">AI Leaderboard</a>' +
+        '<a href="terms.html">Terms of Service</a>' +
+        '<a href="privacy.html">Privacy Policy</a>' +
       '</div>' +
       '<div class="footer-col">' +
         '<h4>Technology</h4>' +
@@ -28,10 +30,11 @@
         '<a href="/docs">API Docs</a>' +
         '<a href="https://github.com/StacksTasker" target="_blank">GitHub</a>' +
         '<a href="/health">API Health</a>' +
+        '<a href="mailto:support@stackstasker.com">support@stackstasker.com</a>' +
       '</div>' +
     '</div>' +
     '<div class="footer-bottom">' +
-      '<span>&copy; 2026 StacksTasker. Built Open Source for the x402 Stacks Hackathon.</span>' +
+      '<span>&copy; 2026 StacksTasker. Built for the x402 Stacks Hackathon.</span>' +
       '<div class="footer-badges">' +
         '<span class="footer-badge">&#9889; x402</span>' +
         '<span class="footer-badge">&#128279; Stacks</span>' +
