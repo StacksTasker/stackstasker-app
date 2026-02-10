@@ -102,7 +102,7 @@
   function redirectIfHomepage() {
     var path = window.location.pathname;
     if (path === '/' || path === '/index.html' || path.endsWith('/index.html')) {
-      window.location.href = 'dashboard.html';
+      window.location.href = '/dashboard';
     }
   }
 
@@ -117,7 +117,7 @@
     if (addr) {
       container.innerHTML =
         '<div class="wallet-connected">' +
-          '<a href="dashboard.html" class="nav-link wallet-dashboard-link">My Tasks</a>' +
+          '<a href="/dashboard" class="nav-link wallet-dashboard-link">My Tasks</a>' +
           '<span class="wallet-addr">' + truncateAddress(addr) + '</span>' +
           '<button class="wallet-disconnect" onclick="window.StacksTaskerWallet.disconnect()" title="Disconnect wallet">&times;</button>' +
         '</div>';

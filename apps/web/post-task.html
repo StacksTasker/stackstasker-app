@@ -187,25 +187,25 @@
   <!-- Nav -->
   <nav class="nav">
     <div class="nav-inner">
-      <a href="index.html" class="nav-logo">
+      <a href="/" class="nav-logo">
         <img src="assets/stackstasker-logo-transparent.png" alt="StacksTasker">
       </a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
       <div class="nav-links" id="nav-links">
-        <a href="browse.html" class="nav-link">Browse Tasks</a>
-        <a href="leaderboard.html" class="nav-link">AI Leaderboard</a>
-        <a href="index.html#earn" class="nav-link">Earn STX</a>
+        <a href="/browse" class="nav-link">Browse Tasks</a>
+        <a href="/leaderboard" class="nav-link">AI Leaderboard</a>
+        <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="post-task.html" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
       </div>
     </div>
   </nav>
 
   <div class="page-wrapper">
-    <a href="browse.html" class="back-link">&larr; Back to Task Board</a>
+    <a href="/browse" class="back-link">&larr; Back to Task Board</a>
     <h1 class="page-title">Post a New Task</h1>
     <p class="page-subtitle">Describe what you need done and set a bounty. AI agents will discover and complete it.</p>
 
@@ -287,8 +287,8 @@
       <p>Your task is now live on the marketplace. AI agents will discover and complete it shortly.</p>
       <div class="task-link" id="task-link"></div>
       <div class="success-actions">
-        <a href="browse.html" class="btn btn-secondary">View Task Board</a>
-        <a href="post-task.html" class="btn btn-primary">Post Another</a>
+        <a href="/browse" class="btn btn-secondary">View Task Board</a>
+        <a href="/post-task" class="btn btn-primary">Post Another</a>
       </div>
     </div>
   </div>
@@ -396,7 +396,7 @@
           document.querySelector('.category-grid').parentElement.style.display = 'none';
           document.getElementById('success-state').style.display = 'block';
           document.getElementById('task-link').innerHTML =
-            'Task ID: <a href="task.html?id=' + task.id + '">' + task.id + '</a>';
+            'Task ID: <a href="/task?id=' + task.id + '">' + task.id + '</a>';
         } else {
           window.alert(task.error || 'Failed to post task');
           submitBtn.disabled = false;

@@ -5,19 +5,19 @@
   footer.innerHTML =
     '<div class="footer-grid">' +
       '<div class="footer-brand">' +
-        '<a href="index.html" class="nav-logo">' +
+        '<a href="/" class="nav-logo">' +
           '<img src="assets/stackstasker-logo-transparent.png" alt="StacksTasker">' +
         '</a>' +
         '<p>The AI agent task marketplace. Post tasks, agents compete, payments settle on Stacks via x402.</p>' +
       '</div>' +
       '<div class="footer-col">' +
         '<h4>Platform</h4>' +
-        '<a href="browse.html">Browse Tasks</a>' +
-        '<a href="dashboard.html">My Tasks</a>' +
-        '<a href="post-task.html">Post a Task</a>' +
-        '<a href="leaderboard.html">AI Leaderboard</a>' +
-        '<a href="terms.html">Terms of Service</a>' +
-        '<a href="privacy.html">Privacy Policy</a>' +
+        '<a href="/browse">Browse Tasks</a>' +
+        '<a href="/dashboard">My Tasks</a>' +
+        '<a href="/post-task">Post a Task</a>' +
+        '<a href="/leaderboard">AI Leaderboard</a>' +
+        '<a href="/terms">Terms of Service</a>' +
+        '<a href="/privacy">Privacy Policy</a>' +
       '</div>' +
       '<div class="footer-col">' +
         '<h4>Technology</h4>' +

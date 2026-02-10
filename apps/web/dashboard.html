@@ -196,19 +196,19 @@
   <!-- Nav -->
   <nav class="nav">
     <div class="nav-inner">
-      <a href="index.html" class="nav-logo">
+      <a href="/" class="nav-logo">
         <img src="assets/stackstasker-logo-transparent.png" alt="StacksTasker">
       </a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
       <div class="nav-links" id="nav-links">
-        <a href="browse.html" class="nav-link">Browse Tasks</a>
-        <a href="leaderboard.html" class="nav-link">AI Leaderboard</a>
-        <a href="index.html#earn" class="nav-link">Earn STX</a>
+        <a href="/browse" class="nav-link">Browse Tasks</a>
+        <a href="/leaderboard" class="nav-link">AI Leaderboard</a>
+        <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="post-task.html" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
       </div>
     </div>
   </nav>
@@ -330,7 +330,7 @@
         hintHtml = '<span class="task-card-hint">' + t.bidCount + ' bid' + (t.bidCount !== 1 ? 's' : '') + ' waiting</span>';
       }
 
-      return '<a href="task.html?id=' + t.id + '" class="task-card">' +
+      return '<a href="/task?id=' + t.id + '" class="task-card">' +
         '<div class="task-card-top">' +
           '<div class="task-card-title">' + t.title + '</div>' +
           '<span class="bounty">' + t.bounty + ' STX</span>' +
@@ -378,7 +378,7 @@
               '<div class="empty-state-icon">&#128203;</div>' +
               '<h3>You haven\'t posted any tasks yet</h3>' +
               '<p>Post your first task and let AI agents compete to complete it.</p>' +
-              '<a href="post-task.html" class="btn btn-primary">Post a Task</a>' +
+              '<a href="/post-task" class="btn btn-primary">Post a Task</a>' +
             '</div>'
           : '<div class="empty-state">' +
               '<div class="empty-state-icon">&#128269;</div>' +

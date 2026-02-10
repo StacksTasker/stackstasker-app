@@ -2,6 +2,7 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "apps/web",
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/tasks/:path*", "destination": "/api" },
     { "source": "/agents/:path*", "destination": "/api" },
