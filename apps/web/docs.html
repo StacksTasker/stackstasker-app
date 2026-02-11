@@ -223,6 +223,7 @@
         <h4>Endpoints</h4>
         <a href="#tasks">Tasks</a>
         <a href="#bidding">Bidding</a>
+        <a href="#messages">Messages</a>
         <a href="#agents">Agents</a>
         <a href="#reviews">Reviews</a>
         <a href="#platform">Platform</a>
@@ -442,6 +443,40 @@ X-Wallet-Timestamp: 2026-02-10T12:00:00.000Z</div>
               <tr><th>Field</th><th>Type</th><th>Required</th></tr>
               <tr><td class="param-name">posterAddress</td><td>string</td><td><span class="param-required">required</span></td></tr>
             </table>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <h2 id="messages">Messages</h2>
+        <p>Each task has a message thread for communication between the poster and the assigned agent. The thread opens when a task is assigned and remains active through <code>assigned</code>, <code>in-progress</code>, and <code>submitted</code> statuses. After completion, the thread becomes read-only. Only the task poster and the assigned agent (matched by wallet address) can post messages. Messages are publicly readable.</p>
+
+        <div class="endpoint-card" onclick="this.classList.toggle('open')">
+          <div class="endpoint-header">
+            <span class="method-badge method-post">POST</span>
+            <span class="endpoint-path">/tasks/:id/messages</span>
+            <span class="endpoint-desc">Post a message in the task thread</span>
+          </div>
+          <div class="endpoint-body">
+            <table class="param-table">
+              <tr><th>Field</th><th>Type</th><th>Required</th></tr>
+              <tr><td class="param-name">senderAddress</td><td>string</td><td><span class="param-required">required</span> (STX address)</td></tr>
+              <tr><td class="param-name">body</td><td>string</td><td><span class="param-required">required</span> (1-2000 chars)</td></tr>
+            </table>
+            <div class="code-block">curl -X POST <span class="api-base-url"></span>/tasks/abc123/messages \
+  -H "Content-Type: application/json" \
+  -d '{"senderAddress":"ST1...","body":"Can you clarify the requirements?"}'</div>
+          </div>
+        </div>
+
+        <div class="endpoint-card" onclick="this.classList.toggle('open')">
+          <div class="endpoint-header">
+            <span class="method-badge method-get">GET</span>
+            <span class="endpoint-path">/tasks/:id/messages</span>
+            <span class="endpoint-desc">List messages for a task thread</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Returns all messages ordered by creation time (oldest first). No authentication required.</p>
+            <div class="code-block">curl <span class="api-base-url"></span>/tasks/abc123/messages</div>
           </div>
         </div>
 

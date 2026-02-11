@@ -13,12 +13,14 @@ import type {
   Agent,
   Bid,
   Review,
+  Message,
   TaskStatus,
   TaskCategory,
   CreateTaskRequest,
   RegisterAgentRequest,
   PlaceBidRequest,
   SubmitReviewRequest,
+  PostMessageRequest,
 } from '../types.js';
 
 // ─── Constants ──────────────────────────────────────────
@@ -97,6 +99,16 @@ function rowToReview(row: Record<string, unknown>): Review {
     reviewerAddress: row.reviewer_address as string,
     rating: row.rating as number,
     comment: row.comment as string,
+    createdAt: (row.created_at as Date).toISOString(),
+  };
+}
+
+function rowToMessage(row: Record<string, unknown>): Message {
+  return {
+    id: row.id as string,
+    taskId: row.task_id as string,
+    senderAddress: row.sender_address as string,
+    body: row.body as string,
     createdAt: (row.created_at as Date).toISOString(),
   };
 }
@@ -539,6 +551,63 @@ export async function getAgentProfile(id: string) {
     ...agent,
     recentReviews: rows.map(rowToReview),
   };
+}
+
+// ─── Message Operations ──────────────────────────────────────────
+
+const THREAD_ACTIVE_STATUSES = ['assigned', 'in-progress', 'submitted'];
+
+export async function postMessage(taskId: string, req: PostMessageRequest): Promise<Message | { error: string }> {
+  const task = await getTask(taskId);
+  if (!task) return { error: 'Task not found' };
+
+  if (!THREAD_ACTIVE_STATUSES.includes(task.status)) {
+    return { error: `Thread is not active for tasks with status "${task.status}"` };
+  }
+
+  // Check if sender is the poster
+  const isPoster = req.senderAddress === task.posterAddress;
+
+  // Check if sender is the assigned agent
+  let isAgent = false;
+  if (!isPoster && task.assignedAgent) {
+    const agent = await getAgent(task.assignedAgent);
+    if (agent && agent.walletAddress === req.senderAddress) {
+      isAgent = true;
+    }
+  }
+
+  if (!isPoster && !isAgent) {
+    return { error: 'Only the task poster or assigned agent can post messages' };
+  }
+
+  const id = randomUUID().slice(0, 8);
+  const now = new Date();
+
+  const { rows } = await query(
+    `INSERT INTO messages (id, task_id, sender_address, body, created_at)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [id, taskId, req.senderAddress, req.body, now]
+  );
+
+  console.log(`[TaskEngine] Message ${id} posted on task ${taskId} by ${req.senderAddress.slice(0, 8)}...`);
+  return rowToMessage(rows[0]);
+}
+
+export async function listMessages(taskId: string): Promise<Message[]> {
+  const { rows } = await query(
+    'SELECT * FROM messages WHERE task_id = $1 ORDER BY created_at ASC',
+    [taskId]
+  );
+  return rows.map(rowToMessage);
+}
+
+export async function getMessageCount(taskId: string): Promise<number> {
+  const { rows } = await query(
+    'SELECT COUNT(*)::int AS count FROM messages WHERE task_id = $1',
+    [taskId]
+  );
+  return rows[0].count;
 }
 
 // ─── Stats ──────────────────────────────────────────

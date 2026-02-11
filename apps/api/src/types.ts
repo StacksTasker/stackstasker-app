@@ -158,3 +158,22 @@ export interface SubmitReviewRequest {
   comment: string;
   reviewerAddress: string;
 }
+
+/**
+ * A message in a task's communication thread
+ */
+export interface Message {
+  id: string;
+  taskId: string;
+  senderAddress: string;
+  body: string;
+  createdAt: string;
+}
+
+/**
+ * Request to post a message in a task thread
+ */
+export interface PostMessageRequest {
+  senderAddress: string;
+  body: string;
+}

@@ -9,6 +9,9 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL?.includes('localhost')
     ? false
     : { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 export async function query(text: string, params?: unknown[]) {
@@ -77,10 +80,19 @@ export async function initDb() {
       UNIQUE(task_id, agent_id)
     );
 
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(id),
+      sender_address TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
     CREATE INDEX IF NOT EXISTS idx_bids_task_id ON bids(task_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_agent_id ON reviews(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id);
   `);
 
   console.log('[DB] Tables initialized');

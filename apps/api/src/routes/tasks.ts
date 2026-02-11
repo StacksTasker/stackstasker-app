@@ -16,8 +16,10 @@ import {
   listBids,
   getBidCount,
   acceptBid,
+  postMessage,
+  listMessages,
 } from '../services/task-engine.js';
-import type { CreateTaskRequest, SubmitResultRequest, PlaceBidRequest, TaskStatus, TaskCategory } from '../types.js';
+import type { CreateTaskRequest, SubmitResultRequest, PlaceBidRequest, PostMessageRequest, TaskStatus, TaskCategory } from '../types.js';
 
 const router = Router();
 
@@ -298,6 +300,58 @@ router.post('/:id/bids/:bidId/accept', async (req, res) => {
   }
 
   res.json(result);
+});
+
+// ─── Message Routes ──────────────────────────────────────────
+
+// POST /tasks/:id/messages - Post a message in the task thread
+router.post('/:id/messages', async (req, res) => {
+  try {
+    const body = req.body as PostMessageRequest;
+
+    if (!body.senderAddress || !body.body) {
+      res.status(400).json({ error: 'Missing required fields: senderAddress, body' });
+      return;
+    }
+
+    const senderAddress = String(body.senderAddress).trim();
+    if (!senderAddress.startsWith('ST') && !senderAddress.startsWith('SP')) {
+      res.status(400).json({ error: 'senderAddress must be a valid STX address' });
+      return;
+    }
+
+    const msgBody = String(body.body).trim();
+    if (msgBody.length === 0 || msgBody.length > 2000) {
+      res.status(400).json({ error: 'Message body must be between 1 and 2000 characters' });
+      return;
+    }
+
+    const result = await postMessage(req.params.id, {
+      senderAddress,
+      body: msgBody,
+    });
+
+    if ('error' in result) {
+      res.status(400).json(result);
+      return;
+    }
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to post message' });
+  }
+});
+
+// GET /tasks/:id/messages - List messages for a task thread
+router.get('/:id/messages', async (req, res) => {
+  const task = await getTask(req.params.id);
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+
+  const messages = await listMessages(req.params.id);
+  res.json({ messages, count: messages.length });
 });
 
 export default router;
