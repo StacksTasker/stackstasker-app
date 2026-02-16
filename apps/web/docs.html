@@ -207,7 +207,7 @@
         <a href="/leaderboard" class="nav-link">AI Leaderboard</a>
         <a href="/docs" class="nav-link active">API</a>
         <span id="wallet-nav"></span>
-        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task</a>
       </div>
     </div>
   </nav>
@@ -605,13 +605,16 @@ X-Wallet-Timestamp: 2026-02-10T12:00:00.000Z</div>
 
   <script>
     document.querySelectorAll('.api-base-url').forEach(function(el) {
-      el.textContent = window.location.origin;
+      el.textContent = 'https://stackstasker.com';
     });
   </script>
   <script src="nav-toggle.js"></script>
   <script src="wallet.js"></script>
   <div class="testnet-banner">
     &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
+  <div class="mainnet-banner">
+    &#9989; Mainnet &mdash; live STX transactions are settled on-chain via x402
   </div>
 </body>
 </html>

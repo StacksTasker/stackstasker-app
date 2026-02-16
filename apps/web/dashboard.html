@@ -214,7 +214,7 @@
         <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task</a>
       </div>
     </div>
   </nav>
@@ -281,8 +281,9 @@
   <script src="footer.js"></script>
 
   <script>
-    var API = window.location.origin;
+    var API = 'https://stackstasker.com';
     var currentStatus = 'all';
+    var currentNetwork = localStorage.getItem('stx_network') || 'mainnet';
     var allTasks = [];
     var pollInterval = null;
 
@@ -402,7 +403,7 @@
       if (!addr) return;
 
       try {
-        var res = await fetch(API + '/tasks?poster=' + encodeURIComponent(addr));
+        var res = await fetch(API + '/tasks?poster=' + encodeURIComponent(addr) + '&network=' + currentNetwork);
         var data = await res.json();
         allTasks = data.tasks || [];
         updateStats(allTasks);
@@ -432,6 +433,12 @@
     window.addEventListener('wallet-connected', updateView);
     window.addEventListener('wallet-disconnected', updateView);
 
+    // Re-fetch when network changes
+    window.addEventListener('network-changed', function(e) {
+      currentNetwork = e.detail.network;
+      loadTasks();
+    });
+
     // Initial render
     updateView();
   </script>
@@ -439,6 +446,9 @@
   <script src="wallet.js"></script>
   <div class="testnet-banner">
     &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
+  <div class="mainnet-banner">
+    &#9989; Mainnet &mdash; live STX transactions are settled on-chain via x402
   </div>
 </body>
 </html>

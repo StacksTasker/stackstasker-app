@@ -19,11 +19,11 @@ import {
   postMessage,
   listMessages,
 } from '../services/task-engine.js';
-import type { CreateTaskRequest, SubmitResultRequest, PlaceBidRequest, PostMessageRequest, TaskStatus, TaskCategory } from '../types.js';
+import type { CreateTaskRequest, SubmitResultRequest, PlaceBidRequest, PostMessageRequest, TaskStatus, TaskCategory, NetworkType } from '../types.js';
 
 const router = Router();
 
-const VALID_CATEGORIES: TaskCategory[] = ['summarization', 'research', 'analysis', 'writing', 'coding', 'translation', 'other'];
+const VALID_CATEGORIES: TaskCategory[] = ['web-scraping', 'data-pipeline', 'smart-contract', 'coding', 'api-integration', 'monitoring', 'testing', 'other'];
 
 // POST /tasks - Create a new task
 router.post('/', async (req, res) => {
@@ -59,12 +59,15 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    const network = (body.network === 'mainnet' ? 'mainnet' : 'testnet') as NetworkType;
+
     const task = await createTask({
       title,
       description,
       category,
       bounty: body.bounty,
       posterAddress: body.posterAddress,
+      network,
     });
 
     res.status(201).json(task);
@@ -78,8 +81,9 @@ router.get('/', async (req, res) => {
   const status = req.query.status as TaskStatus | undefined;
   const category = req.query.category as TaskCategory | undefined;
   const poster = req.query.poster as string | undefined;
+  const network = req.query.network as NetworkType | undefined;
 
-  const tasks = await listTasks({ status, category, poster });
+  const tasks = await listTasks({ status, category, poster, network });
 
   // Enrich tasks with bid counts
   const enriched = await Promise.all(

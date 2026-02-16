@@ -11,7 +11,7 @@ const pool = new Pool({
     : { rejectUnauthorized: false },
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 });
 
 export async function query(text: string, params?: unknown[]) {
@@ -47,6 +47,7 @@ export async function initDb() {
       bounty TEXT NOT NULL,
       bounty_micro_stx TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'open',
+      network TEXT NOT NULL DEFAULT 'testnet',
       poster_address TEXT NOT NULL,
       assigned_agent TEXT REFERENCES agents(id),
       result TEXT,
@@ -93,6 +94,14 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_bids_task_id ON bids(task_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_agent_id ON reviews(agent_id);
     CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id);
+  `);
+
+  // Migration: add network column to existing tables that lack it
+  await pool.query(`
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS network TEXT NOT NULL DEFAULT 'testnet';
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_tasks_network ON tasks(network);
   `);
 
   console.log('[DB] Tables initialized');

@@ -17,3 +17,12 @@
     });
   });
 })();
+
+// Nav background on scroll
+(function () {
+  var nav = document.querySelector('.nav');
+  if (!nav) return;
+  window.addEventListener('scroll', function () {
+    nav.classList.toggle('scrolled', window.scrollY > 10);
+  });
+})();

@@ -122,6 +122,13 @@ img { max-width: 100%; display: block; }
   top: 0;
   z-index: 100;
   background: transparent;
+  transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+}
+.nav.scrolled {
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .nav-inner {
@@ -314,6 +321,21 @@ img { max-width: 100%; display: block; }
 .tag-open {
   background: var(--green-glow);
   color: var(--green);
+}
+
+.tag-testnet {
+  background: var(--orange-glow);
+  color: var(--orange);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.tag-mainnet {
+  background: var(--green-glow);
+  color: var(--green);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
 }
 
 .tag-assigned {
@@ -661,11 +683,8 @@ img { max-width: 100%; display: block; }
   .bounty-lg { padding: 8px 16px; font-size: 16px; }
 }
 
-/* Hide "Post a Task" button in nav on desktop, show on mobile */
-.nav-post-btn { display: none; }
-@media (max-width: 768px) {
-  .nav-post-btn { display: inline-flex; }
-}
+/* "Post a Task" button in nav */
+.nav-post-btn { display: inline-flex; }
 
 /* ─── Wallet Connect ─── */
 .btn-wallet {
@@ -734,6 +753,7 @@ img { max-width: 100%; display: block; }
 
 /* ─── Testnet Banner ─── */
 .testnet-banner {
+  display: none;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -840,6 +860,118 @@ img { max-width: 100%; display: block; }
 }
 .fee-value {
   font-weight: 600;
+}
+
+/* ─── Mainnet Banner ─── */
+.mainnet-banner {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--green);
+  color: #000;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 200;
+}
+
+/* ─── Network Toggle ─── */
+.network-toggle {
+  position: fixed;
+  bottom: 52px;
+  right: 20px;
+  z-index: 199;
+  display: flex;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 3px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(12px);
+}
+
+.network-toggle-btn {
+  position: relative;
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.network-toggle-btn.active-testnet {
+  background: var(--orange);
+  color: #000;
+  box-shadow:
+    0 0 12px rgba(247, 147, 26, 0.5),
+    0 0 24px rgba(247, 147, 26, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.network-toggle-btn.active-mainnet {
+  background: var(--green);
+  color: #000;
+  box-shadow:
+    0 0 12px rgba(0, 214, 143, 0.5),
+    0 0 24px rgba(0, 214, 143, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.network-toggle-btn:not(.active-testnet):not(.active-mainnet):hover {
+  color: var(--text-secondary);
+  background: var(--surface-2);
+}
+
+.network-toggle-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.active-testnet .network-toggle-dot {
+  background: #000;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  animation: glow-orange 2s ease-in-out infinite;
+}
+
+.active-mainnet .network-toggle-dot {
+  background: #000;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  animation: glow-green 2s ease-in-out infinite;
+}
+
+@keyframes glow-orange {
+  0%, 100% { box-shadow: 0 0 4px rgba(247, 147, 26, 0.6); }
+  50% { box-shadow: 0 0 10px rgba(247, 147, 26, 1); }
+}
+
+@keyframes glow-green {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 214, 143, 0.6); }
+  50% { box-shadow: 0 0 10px rgba(0, 214, 143, 1); }
+}
+
+@media (max-width: 480px) {
+  .network-toggle {
+    right: 12px;
+    bottom: 48px;
+  }
+  .network-toggle-btn {
+    padding: 5px 12px;
+    font-size: 10px;
+  }
 }
 
 /* ─── Wallet-gated Notice ─── */

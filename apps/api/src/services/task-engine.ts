@@ -16,6 +16,7 @@ import type {
   Message,
   TaskStatus,
   TaskCategory,
+  NetworkType,
   CreateTaskRequest,
   RegisterAgentRequest,
   PlaceBidRequest,
@@ -49,6 +50,7 @@ function rowToTask(row: Record<string, unknown>): Task {
     bounty: row.bounty as string,
     bountyMicroStx: row.bounty_micro_stx as string,
     status: row.status as TaskStatus,
+    network: (row.network as NetworkType) || 'testnet',
     posterAddress: row.poster_address as string,
     assignedAgent: (row.assigned_agent as string) || undefined,
     result: (row.result as string) || undefined,
@@ -118,15 +120,16 @@ function rowToMessage(row: Record<string, unknown>): Message {
 export async function createTask(req: CreateTaskRequest): Promise<Task> {
   const id = randomUUID().slice(0, 8);
   const now = new Date();
+  const network = req.network || 'testnet';
 
   const { rows } = await query(
-    `INSERT INTO tasks (id, title, description, category, bounty, bounty_micro_stx, status, poster_address, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, $8, $8)
+    `INSERT INTO tasks (id, title, description, category, bounty, bounty_micro_stx, status, network, poster_address, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, $8, $9, $9)
      RETURNING *`,
-    [id, req.title, req.description, req.category, req.bounty, stxToMicroStx(req.bounty), req.posterAddress, now]
+    [id, req.title, req.description, req.category, req.bounty, stxToMicroStx(req.bounty), network, req.posterAddress, now]
   );
 
-  console.log(`[TaskEngine] Created task ${id}: "${req.title}" (${req.bounty} STX)`);
+  console.log(`[TaskEngine] Created task ${id}: "${req.title}" (${req.bounty} STX) [${network}]`);
   return rowToTask(rows[0]);
 }
 
@@ -139,6 +142,7 @@ export async function listTasks(filters?: {
   status?: TaskStatus;
   category?: TaskCategory;
   poster?: string;
+  network?: NetworkType;
 }): Promise<Task[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
@@ -155,6 +159,10 @@ export async function listTasks(filters?: {
   if (filters?.poster) {
     conditions.push(`poster_address = $${idx++}`);
     params.push(filters.poster);
+  }
+  if (filters?.network) {
+    conditions.push(`network = $${idx++}`);
+    params.push(filters.network);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -612,21 +620,27 @@ export async function getMessageCount(taskId: string): Promise<number> {
 
 // ─── Stats ──────────────────────────────────────────
 
-export async function getStats() {
+export async function getStats(network?: NetworkType) {
+  const networkFilter = network ? `WHERE network = '${network}'` : '';
   const { rows } = await query(`
     SELECT
       COUNT(*)::int AS total_tasks,
       COUNT(*) FILTER (WHERE status IN ('open', 'bidding'))::int AS open_tasks,
       COUNT(*) FILTER (WHERE status IN ('completed', 'closed'))::int AS completed_tasks,
       COALESCE(SUM(CAST(platform_fee AS NUMERIC)) FILTER (WHERE platform_fee IS NOT NULL), 0) AS total_platform_fees
-    FROM tasks
+    FROM tasks ${networkFilter}
   `);
 
   const { rows: agentRows } = await query(`
-    SELECT
-      COUNT(*)::int AS total_agents,
-      COALESCE(SUM(CAST(total_earned AS NUMERIC)), 0) AS total_paid
-    FROM agents
+    SELECT COUNT(*)::int AS total_agents FROM agents
+  `);
+
+  // Sum paid from tasks table so we can filter by network
+  const { rows: paidRows } = await query(`
+    SELECT COALESCE(SUM(CAST(bounty AS NUMERIC)), 0) AS total_paid
+    FROM tasks
+    WHERE status IN ('completed', 'closed') AND payment_tx_id IS NOT NULL
+    ${network ? `AND network = '${network}'` : ''}
   `);
 
   return {
@@ -634,7 +648,7 @@ export async function getStats() {
     openTasks: rows[0].open_tasks,
     completedTasks: rows[0].completed_tasks,
     totalAgents: agentRows[0].total_agents,
-    totalPaid: parseFloat(agentRows[0].total_paid).toFixed(6),
+    totalPaid: parseFloat(paidRows[0].total_paid).toFixed(6),
     totalPlatformFees: parseFloat(rows[0].total_platform_fees).toFixed(6),
     platformWallet: PLATFORM_WALLET,
   };

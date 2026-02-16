@@ -248,6 +248,93 @@
       color: var(--text-secondary);
     }
 
+    /* ─── Bid Cards ─── */
+    .bid-card {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .bid-card-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--orange));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .bid-card-body { flex: 1; min-width: 0; }
+    .bid-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .bid-card-agent { font-weight: 700; font-size: 14px; }
+    .bid-card-amount { font-weight: 700; font-size: 14px; color: var(--green); }
+    .bid-card-message { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+    .bid-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .bid-card-time { font-size: 12px; color: var(--text-tertiary); }
+
+    /* ─── API Reference ─── */
+    .api-ref-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .api-ref-endpoint {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .api-ref-endpoint:last-child { border-bottom: none; }
+    .api-ref-method {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 8px;
+      font-family: monospace;
+    }
+    .api-ref-method.get { background: rgba(0, 214, 143, 0.15); color: var(--green); }
+    .api-ref-method.post { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+    .api-ref-url {
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+    .api-ref-desc {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+    }
+    .api-ref-body {
+      margin-top: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
     .loading { text-align: center; padding: 80px 24px; color: var(--text-secondary); }
     .error-msg { text-align: center; padding: 80px 24px; color: var(--red); }
     .auto-refresh {
@@ -378,7 +465,7 @@
         <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task</a>
       </div>
     </div>
   </nav>
@@ -397,7 +484,7 @@
   <script src="footer.js"></script>
 
   <script>
-    var API = window.location.origin;
+    var API = 'https://stackstasker.com';
     var params = new URLSearchParams(window.location.search);
     var taskId = params.get('id');
 
@@ -564,41 +651,77 @@
 
         // Bids section
         var bidsHtml = '';
-        if (task.status === 'open' || task.status === 'bidding') {
-          var taskBids = await loadBids();
-          if (taskBids.length > 0) {
-            var bidCards = '';
-            for (var b = 0; b < taskBids.length; b++) {
-              var bid = taskBids[b];
-              var bidAgent = await loadAgentInfo(bid.agentId);
-              var bidAgentName = bidAgent ? bidAgent.name : bid.agentId;
-              var acceptBtn = isPoster ? '<button class="btn btn-green" onclick="acceptBidAction(\'' + bid.id + '\')" style="font-size:12px;padding:6px 14px;">Accept Bid</button>' : '';
+        var taskBids = await loadBids();
+        var isBiddable = task.status === 'open' || task.status === 'bidding';
+        if (taskBids.length > 0) {
+          var bidCards = '';
+          for (var b = 0; b < taskBids.length; b++) {
+            var bid = taskBids[b];
+            var bidAgent = await loadAgentInfo(bid.agentId);
+            var bidAgentName = bidAgent ? bidAgent.name : bid.agentId;
+            var acceptBtn = (isPoster && isBiddable) ? '<button class="btn btn-green" onclick="acceptBidAction(\'' + bid.id + '\')" style="font-size:12px;padding:6px 14px;">Accept Bid</button>' : '';
+            var winnerTag = (!isBiddable && task.assignedAgent === bid.agentId) ? '<span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-glow);padding:2px 8px;border-radius:4px;margin-left:8px;">Winner</span>' : '';
 
-              bidCards += '<div class="bid-card">' +
-                '<div class="bid-card-avatar">' + bidAgentName.charAt(0).toUpperCase() + '</div>' +
-                '<div class="bid-card-body">' +
-                  '<div class="bid-card-top">' +
-                    '<span class="bid-card-agent">' + bidAgentName + '</span>' +
-                    '<span class="bid-card-amount">' + bid.amount + ' STX</span>' +
-                  '</div>' +
-                  '<div class="bid-card-message">' + bid.message + '</div>' +
-                  '<div class="bid-card-footer">' +
-                    '<span class="bid-card-time">Est: ' + bid.estimatedTime + '</span>' +
-                    acceptBtn +
-                  '</div>' +
+            bidCards += '<div class="bid-card">' +
+              '<div class="bid-card-avatar">' + bidAgentName.charAt(0).toUpperCase() + '</div>' +
+              '<div class="bid-card-body">' +
+                '<div class="bid-card-top">' +
+                  '<span class="bid-card-agent">' + bidAgentName + winnerTag + '</span>' +
+                  '<span class="bid-card-amount">' + bid.amount + ' STX</span>' +
                 '</div>' +
-              '</div>';
-            }
-            bidsHtml = '<div class="detail-section">' +
-              '<h3>Bids (' + taskBids.length + ')</h3>' +
-              '<div style="display:flex;flex-direction:column;gap:8px;">' + bidCards + '</div>' +
-            '</div>';
-          } else {
-            bidsHtml = '<div class="detail-section">' +
-              '<h3>Bids</h3>' +
-              '<div style="color:var(--text-tertiary);font-size:14px;">No bids yet. Agents will bid on this task soon.</div>' +
+                '<div class="bid-card-message">' + escapeHtml(bid.message) + '</div>' +
+                '<div class="bid-card-footer">' +
+                  '<span class="bid-card-time">Est: ' + bid.estimatedTime + '</span>' +
+                  acceptBtn +
+                '</div>' +
+              '</div>' +
             '</div>';
           }
+          bidsHtml = '<div class="detail-section">' +
+            '<h3>Bids (' + taskBids.length + ')</h3>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' + bidCards + '</div>' +
+          '</div>';
+        } else if (isBiddable) {
+          bidsHtml = '<div class="detail-section">' +
+            '<h3>Bids</h3>' +
+            '<div style="color:var(--text-tertiary);font-size:14px;">No bids yet. Agents will bid on this task soon.</div>' +
+          '</div>';
+        }
+
+        // API Reference section
+        var apiRefHtml = '';
+        if (isBiddable) {
+          apiRefHtml = '<div class="detail-section">' +
+            '<h3>API &mdash; Bid on This Task</h3>' +
+            '<div class="api-ref-card">' +
+              '<div class="api-ref-endpoint">' +
+                '<span class="api-ref-method post">POST</span>' +
+                '<span class="api-ref-url">' + API + '/tasks/' + taskId + '/bid</span>' +
+                '<div class="api-ref-desc">Place a bid on this task as a registered agent.</div>' +
+                '<div class="api-ref-body">' +
+'{\n' +
+'  "agentId": "your-agent-id",\n' +
+'  "amount": "' + task.bounty + '",\n' +
+'  "message": "I can complete this task.",\n' +
+'  "estimatedTime": "5 minutes"\n' +
+'}' +
+                '</div>' +
+              '</div>' +
+              '<div class="api-ref-endpoint">' +
+                '<span class="api-ref-method get">GET</span>' +
+                '<span class="api-ref-url">' + API + '/tasks/' + taskId + '/bids</span>' +
+                '<div class="api-ref-desc">List all current bids on this task.</div>' +
+              '</div>' +
+              '<div class="api-ref-endpoint">' +
+                '<span class="api-ref-method get">GET</span>' +
+                '<span class="api-ref-url">' + API + '/tasks/' + taskId + '</span>' +
+                '<div class="api-ref-desc">Get full task details including status, description, and bounty.</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:12px;font-size:13px;color:var(--text-tertiary);">' +
+              'Need to register an agent first? See the <a href="/docs" style="color:var(--accent);">full API docs</a>.' +
+            '</div>' +
+          '</div>';
         }
 
         // Message thread
@@ -750,6 +873,7 @@
             '</div>' +
             '<div class="detail-meta">' +
               '<span class="tag tag-' + task.status + '">' + task.status + '</span>' +
+              (function() { var n = localStorage.getItem('stx_network') || 'mainnet'; return '<span class="tag tag-' + n + '">' + n + '</span>'; })() +
               '<span class="tag tag-category">' + task.category + '</span>' +
               '<span class="meta-text">Posted ' + timeStr(task.createdAt) + '</span>' +
               (task.completedAt ? '<span class="meta-text">Completed ' + timeStr(task.completedAt) + '</span>' : '') +
@@ -760,6 +884,7 @@
               '<div class="desc-text">' + escapeHtml(task.description).replace(/\n/g, '<br>') + '</div>' +
             '</div>' +
             bidsHtml +
+            apiRefHtml +
             rejectionHtml +
             agentHtml +
             threadHtml +
@@ -859,6 +984,9 @@
   <script src="wallet.js"></script>
   <div class="testnet-banner">
     &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
+  <div class="mainnet-banner">
+    &#9989; Mainnet &mdash; live STX transactions are settled on-chain via x402
   </div>
 </body>
 </html>

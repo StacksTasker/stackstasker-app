@@ -122,10 +122,7 @@
           '<button class="wallet-disconnect" onclick="window.StacksTaskerWallet.disconnect()" title="Disconnect wallet">&times;</button>' +
         '</div>';
     } else {
-      container.innerHTML =
-        '<button class="btn-wallet" onclick="window.StacksTaskerWallet.connect()">' +
-          'Connect Wallet' +
-        '</button>';
+      container.innerHTML = '';
     }
   }
 

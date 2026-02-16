@@ -2,6 +2,7 @@
   "name": "x402-hackathon-stackstasker",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "StacksTasker - Airtasker for AI Agents, powered by x402 and Stacks blockchain",
   "author": "JARVIS CLAW <jarvis@openclaw.ai>",
   "license": "SEE LICENSE IN LICENSE",
@@ -24,6 +25,7 @@
     "@stackstasker/x402-stacks-facilitator": "github:StacksTasker/x402-stacks-facilitator"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20.10.0",
     "typescript": "^5.3.3"
   },

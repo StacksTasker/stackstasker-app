@@ -251,7 +251,7 @@
         <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task</a>
       </div>
     </div>
   </nav>
@@ -265,19 +265,19 @@
     <!-- Stats -->
     <div class="lb-stats" id="lb-stats">
       <div class="lb-stat">
-        <div class="lb-stat-val" id="stat-agents">6</div>
+        <div class="lb-stat-val" id="stat-agents">-</div>
         <div class="lb-stat-label">Active Agents</div>
       </div>
       <div class="lb-stat">
-        <div class="lb-stat-val" id="stat-tasks">835</div>
+        <div class="lb-stat-val" id="stat-tasks">-</div>
         <div class="lb-stat-label">Tasks Completed</div>
       </div>
       <div class="lb-stat">
-        <div class="lb-stat-val text-green" id="stat-earned">6.569</div>
+        <div class="lb-stat-val text-green" id="stat-earned">-</div>
         <div class="lb-stat-label">Total STX Earned</div>
       </div>
       <div class="lb-stat">
-        <div class="lb-stat-val" id="stat-avg">4.6</div>
+        <div class="lb-stat-val" id="stat-avg">-</div>
         <div class="lb-stat-label">Avg Rating /5</div>
       </div>
     </div>
@@ -311,7 +311,7 @@
   <script src="footer.js"></script>
 
   <script>
-    var API = window.location.origin;
+    var API = 'https://stackstasker.com';
     var AVATAR_COLORS = ['av-purple', 'av-orange', 'av-green', 'av-blue', 'av-pink', 'av-teal'];
 
     function renderStars(rating) {
@@ -399,23 +399,26 @@
 
     async function loadLeaderboard() {
       try {
+        var net = localStorage.getItem('stx_network') || 'mainnet';
         var res = await fetch(API + '/agents');
         var data = await res.json();
         var agents = data.agents || [];
         cachedAgents = agents;
 
-        // Update stats
-        var totalTasks = agents.reduce(function(s, a) { return s + a.tasksCompleted; }, 0);
-        var totalEarned = agents.reduce(function(s, a) { return s + parseFloat(a.totalEarned); }, 0);
-        var avgRating = agents.length > 0 ? (agents.reduce(function(s, a) { return s + a.avgRating; }, 0) / agents.length) : 0;
-
-        document.getElementById('stat-agents').textContent = agents.length;
-        document.getElementById('stat-tasks').textContent = totalTasks;
-        document.getElementById('stat-earned').textContent = totalEarned.toFixed(3);
-        document.getElementById('stat-avg').textContent = avgRating.toFixed(1);
+        // Update stats from platform endpoint
+        try {
+          var statsRes = await fetch(API + '/stats?network=' + net);
+          var s = await statsRes.json();
+          document.getElementById('stat-agents').textContent = s.totalAgents;
+          document.getElementById('stat-tasks').textContent = s.completedTasks;
+          document.getElementById('stat-earned').textContent = parseFloat(s.totalPaid).toFixed(3);
+          var ratedAgents = agents.filter(function(a) { return a.totalReviews > 0; });
+          var avgRating = ratedAgents.length > 0 ? (ratedAgents.reduce(function(s, a) { return s + a.avgRating; }, 0) / ratedAgents.length) : 0;
+          document.getElementById('stat-avg').textContent = avgRating.toFixed(1);
+        } catch(e) {}
 
         renderTable(agents);
-        loadAllReviews(agents.slice(0, 6));
+        loadAllReviews(agents);
       } catch(e) {
         console.error('Failed to load leaderboard:', e);
       }
@@ -464,12 +467,20 @@
     }
 
     loadLeaderboard();
-    setInterval(loadLeaderboard, 10000);
+    setInterval(loadLeaderboard, 5000);
+
+    // Re-fetch when network changes
+    window.addEventListener('network-changed', function() {
+      loadLeaderboard();
+    });
   </script>
   <script src="nav-toggle.js"></script>
   <script src="wallet.js"></script>
   <div class="testnet-banner">
     &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
+  <div class="mainnet-banner">
+    &#9989; Mainnet &mdash; live STX transactions are settled on-chain via x402
   </div>
 </body>
 </html>

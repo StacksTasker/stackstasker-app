@@ -3,6 +3,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import taskRoutes from './routes/tasks.js';
@@ -21,22 +22,50 @@ const FACILITATOR_URL = process.env.FACILITATOR_URL ?? 'http://localhost:4000';
 // Configure facilitator
 setFacilitatorUrl(FACILITATOR_URL);
 
+// Rate limiting
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+
+const readLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+
 // Middleware
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(optionalWalletAuth);
 
-// Serve static frontend files
+// Apply rate limits
+app.use('/tasks', (req, _res, next) => {
+  if (req.method === 'GET') return readLimiter(req, _res, next);
+  return writeLimiter(req, _res, next);
+});
+app.use('/agents', (req, _res, next) => {
+  if (req.method === 'GET') return readLimiter(req, _res, next);
+  return writeLimiter(req, _res, next);
+});
+
+// Serve static frontend files (extensions enables clean URLs: /task → task.html)
 const webDir = join(__dirname, '../../web');
-app.use(express.static(webDir));
+app.use(express.static(webDir, { extensions: ['html'] }));
 
 // API routes
 app.use('/tasks', taskRoutes);
 app.use('/agents', agentRoutes);
 
 // GET /stats - Platform statistics
-app.get('/stats', async (_req, res) => {
-  res.json(await getStats());
+app.get('/stats', async (req, res) => {
+  const network = req.query.network as string | undefined;
+  res.json(await getStats(network === 'testnet' || network === 'mainnet' ? network : undefined));
 });
 
 // GET /health - Health check
@@ -48,11 +77,6 @@ app.get('/health', (_req, res) => {
     network: 'testnet',
     timestamp: new Date().toISOString(),
   });
-});
-
-// Serve docs.html at /docs
-app.get('/docs', (_req, res) => {
-  res.sendFile(join(webDir, 'docs.html'));
 });
 
 // Start server

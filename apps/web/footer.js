@@ -1,5 +1,8 @@
 // Shared footer component — included on every page
 (function () {
+  var currentNetwork = localStorage.getItem('stx_network') || 'testnet';
+
+  // ─── Footer HTML ───
   var footer = document.createElement('footer');
   footer.className = 'footer';
   footer.innerHTML =
@@ -29,6 +32,7 @@
         '<h4>Resources</h4>' +
         '<a href="/docs">API Docs</a>' +
         '<a href="https://github.com/StacksTasker" target="_blank">GitHub</a>' +
+        '<a href="https://dorahacks.io/hackathon/x402-stacks/buidl" target="_blank">DoraHacks Hackathon</a>' +
         '<a href="/health">API Health</a>' +
         '<a href="mailto:support@stackstasker.com">support@stackstasker.com</a>' +
       '</div>' +
@@ -42,11 +46,59 @@
       '</div>' +
     '</div>';
 
-  // Insert before testnet banner (or at end of body)
-  var banner = document.querySelector('.testnet-banner');
-  if (banner) {
-    banner.parentNode.insertBefore(footer, banner);
+  // ─── Network Toggle ───
+  var toggle = document.createElement('div');
+  toggle.className = 'network-toggle';
+  toggle.innerHTML =
+    '<button class="network-toggle-btn" data-network="testnet">' +
+      '<span class="network-toggle-dot"></span>Testnet' +
+    '</button>' +
+    '<button class="network-toggle-btn" data-network="mainnet">' +
+      '<span class="network-toggle-dot"></span>Mainnet' +
+    '</button>';
+
+  function setNetwork(net) {
+    currentNetwork = net;
+    localStorage.setItem('stx_network', net);
+    var btns = toggle.querySelectorAll('.network-toggle-btn');
+    btns.forEach(function (btn) {
+      btn.classList.remove('active-testnet', 'active-mainnet');
+      if (btn.dataset.network === net) {
+        btn.classList.add(net === 'testnet' ? 'active-testnet' : 'active-mainnet');
+      }
+    });
+
+    // Toggle testnet/mainnet banners
+    var testnetBanner = document.querySelector('.testnet-banner');
+    var mainnetBanner = document.querySelector('.mainnet-banner');
+    if (testnetBanner) testnetBanner.style.display = net === 'testnet' ? 'block' : 'none';
+    if (mainnetBanner) mainnetBanner.style.display = net === 'mainnet' ? 'block' : 'none';
+
+    // Dispatch event so pages can re-fetch data for the selected network
+    window.dispatchEvent(new CustomEvent('network-changed', { detail: { network: net } }));
+  }
+
+  toggle.addEventListener('click', function (e) {
+    var btn = e.target.closest('.network-toggle-btn');
+    if (btn) setNetwork(btn.dataset.network);
+  });
+
+  // Wait for full DOM before inserting footer and applying banner state,
+  // because banner divs are placed after this script in the HTML.
+  function init() {
+    var banner = document.querySelector('.testnet-banner');
+    if (banner) {
+      banner.parentNode.insertBefore(footer, banner);
+    } else {
+      document.body.appendChild(footer);
+    }
+    document.body.appendChild(toggle);
+    setNetwork(currentNetwork);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    document.body.appendChild(footer);
+    init();
   }
 })();

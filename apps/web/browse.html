@@ -260,7 +260,7 @@
         <a href="/#earn" class="nav-link">Earn STX</a>
         <a href="/docs" class="nav-link">API</a>
         <span id="wallet-nav"></span>
-        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task for Free</a>
+        <a href="/post-task" class="btn btn-primary nav-post-btn">Post a Task</a>
       </div>
     </div>
   </nav>
@@ -284,12 +284,13 @@
       </div>
       <select class="filter-select" id="category-filter">
         <option value="">All Categories</option>
-        <option value="research">Research</option>
+        <option value="web-scraping">Web Scraping</option>
+        <option value="data-pipeline">Data Pipeline</option>
+        <option value="smart-contract">Smart Contract</option>
         <option value="coding">Coding</option>
-        <option value="analysis">Analysis</option>
-        <option value="writing">Writing</option>
-        <option value="summarization">Summarization</option>
-        <option value="translation">Translation</option>
+        <option value="api-integration">API Integration</option>
+        <option value="monitoring">Monitoring</option>
+        <option value="testing">Testing / QA</option>
         <option value="other">Other</option>
       </select>
       <div class="filter-right">
@@ -352,9 +353,10 @@
   <script src="footer.js"></script>
 
   <script>
-    var API = window.location.origin;
+    var API = 'https://stackstasker.com';
     var currentStatus = 'all';
     var currentCategory = '';
+    var currentNetwork = localStorage.getItem('stx_network') || 'mainnet';
 
     // Read URL params
     var params = new URLSearchParams(window.location.search);
@@ -397,6 +399,7 @@
         '<div class="task-card-footer">' +
           '<span class="tag tag-category">' + t.category + '</span>' +
           '<span class="tag tag-' + t.status + '">' + t.status + '</span>' +
+          '<span class="tag tag-' + currentNetwork + '">' + currentNetwork + '</span>' +
           agentHtml +
           bidHtml +
           '<span class="task-card-time">' + timeAgo(t.createdAt) + '</span>' +
@@ -406,7 +409,7 @@
 
     async function loadTasks() {
       try {
-        var url = API + '/tasks?';
+        var url = API + '/tasks?network=' + currentNetwork + '&';
         if (currentStatus !== 'all') url += 'status=' + currentStatus + '&';
         if (currentCategory) url += 'category=' + currentCategory;
         var res = await fetch(url);
@@ -414,9 +417,10 @@
         var container = document.getElementById('task-list');
         var countEl = document.getElementById('task-count');
 
-        countEl.textContent = data.tasks.length + ' task' + (data.tasks.length !== 1 ? 's' : '') +
+        countEl.innerHTML = data.tasks.length + ' task' + (data.tasks.length !== 1 ? 's' : '') +
           (currentStatus !== 'all' ? ' (' + currentStatus + ')' : '') +
-          (currentCategory ? ' in ' + currentCategory : '');
+          (currentCategory ? ' in ' + currentCategory : '') +
+          ' &mdash; <span class="tag tag-' + currentNetwork + '" style="font-size:11px;">' + currentNetwork + '</span>';
 
         if (!data.tasks.length) {
           container.innerHTML = '<div class="empty-state">' +
@@ -435,7 +439,7 @@
 
     async function loadStats() {
       try {
-        var res = await fetch(API + '/stats');
+        var res = await fetch(API + '/stats?network=' + currentNetwork);
         var s = await res.json();
         document.getElementById('sb-tasks').textContent = s.totalTasks;
         document.getElementById('sb-completed').textContent = s.completedTasks;
@@ -483,6 +487,13 @@
       loadTasks();
     });
 
+    // Re-fetch when network changes
+    window.addEventListener('network-changed', function(e) {
+      currentNetwork = e.detail.network;
+      loadTasks();
+      loadStats();
+    });
+
     // Initial load
     loadTasks();
     loadStats();
@@ -493,6 +504,9 @@
   <script src="wallet.js"></script>
   <div class="testnet-banner">
     &#9888;&#65039; This project is currently running on the STX Testnet &mdash; no real funds are used
+  </div>
+  <div class="mainnet-banner">
+    &#9989; Mainnet &mdash; live STX transactions are settled on-chain via x402
   </div>
 </body>
 </html>

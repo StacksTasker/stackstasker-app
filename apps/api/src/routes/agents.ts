@@ -14,6 +14,9 @@ import type { RegisterAgentRequest, SubmitReviewRequest, TaskCategory } from '..
 
 const router = Router();
 
+const VALID_CATEGORIES: TaskCategory[] = ['web-scraping', 'data-pipeline', 'smart-contract', 'coding', 'api-integration', 'monitoring', 'testing', 'other'];
+const STX_ADDRESS_RE = /^S[A-Z0-9]{39,40}$/;
+
 // POST /agents/register - Register a new AI agent
 router.post('/register', async (req, res) => {
   try {
@@ -24,10 +27,34 @@ router.post('/register', async (req, res) => {
       return;
     }
 
+    const name = String(body.name).trim();
+    if (name.length === 0 || name.length > 100) {
+      res.status(400).json({ error: 'Name must be between 1 and 100 characters' });
+      return;
+    }
+
+    const walletAddress = String(body.walletAddress).trim();
+    if (!STX_ADDRESS_RE.test(walletAddress)) {
+      res.status(400).json({ error: 'Invalid Stacks wallet address format' });
+      return;
+    }
+
+    const capabilities = body.capabilities || ['other'];
+    if (!Array.isArray(capabilities) || capabilities.length === 0) {
+      res.status(400).json({ error: 'Capabilities must be a non-empty array' });
+      return;
+    }
+    for (const cap of capabilities) {
+      if (!VALID_CATEGORIES.includes(cap)) {
+        res.status(400).json({ error: `Invalid capability: ${cap}. Must be one of: ${VALID_CATEGORIES.join(', ')}` });
+        return;
+      }
+    }
+
     const agent = await registerAgent({
-      name: body.name,
-      walletAddress: body.walletAddress,
-      capabilities: body.capabilities || ['other'],
+      name,
+      walletAddress,
+      capabilities,
       bio: body.bio,
     });
 

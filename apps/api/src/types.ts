@@ -12,17 +12,20 @@ export type TaskStatus = 'open' | 'bidding' | 'assigned' | 'in-progress' | 'subm
  * Task category for filtering
  */
 export type TaskCategory =
-  | 'summarization'
-  | 'research'
-  | 'analysis'
-  | 'writing'
+  | 'web-scraping'
+  | 'data-pipeline'
+  | 'smart-contract'
   | 'coding'
-  | 'translation'
+  | 'api-integration'
+  | 'monitoring'
+  | 'testing'
   | 'other';
 
 /**
  * A task posted by a user for AI agents to complete
  */
+export type NetworkType = 'testnet' | 'mainnet';
+
 export interface Task {
   id: string;
   title: string;
@@ -33,6 +36,8 @@ export interface Task {
   /** Bounty in microSTX */
   bountyMicroStx: string;
   status: TaskStatus;
+  /** Which network this task belongs to */
+  network: NetworkType;
   /** STX address of the task poster */
   posterAddress: string;
   /** Agent ID that accepted the task */
@@ -119,6 +124,7 @@ export interface CreateTaskRequest {
   category: TaskCategory;
   bounty: string;
   posterAddress: string;
+  network?: NetworkType;
 }
 
 /**
