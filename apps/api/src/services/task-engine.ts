@@ -28,6 +28,7 @@ import type {
 // ─── Constants ──────────────────────────────────────────
 const PLATFORM_FEE_PERCENT = 0.01; // 1%
 const PLATFORM_WALLET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
+const PLATFORM_WALLET_FALLBACK = 'SPRG5SJWZ4TE23RJY2Z9NJW9MVN23NMSEGVHH714';
 
 const AVATAR_COLORS = ['av-purple', 'av-orange', 'av-green', 'av-blue', 'av-pink', 'av-teal'];
 
@@ -341,6 +342,18 @@ export async function approveTask(taskId: string, txId?: string): Promise<Task |
     console.log(`[TaskEngine] Could not fetch STX/USD price, USD value not locked`);
   }
 
+  // Use fallback platform wallet if poster or agent IS the primary platform wallet
+  // (Clarity stx-transfer? disallows self-transfers)
+  let agentWalletAddr = '';
+  if (task.assignedAgent) {
+    const agent = await getAgent(task.assignedAgent);
+    if (agent && 'walletAddress' in agent) agentWalletAddr = agent.walletAddress;
+  }
+  const effectivePlatformWallet =
+    (task.posterAddress === PLATFORM_WALLET || agentWalletAddr === PLATFORM_WALLET)
+      ? PLATFORM_WALLET_FALLBACK
+      : PLATFORM_WALLET;
+
   // Use transaction to atomically update task + agent
   const client = await getClient();
   try {
@@ -351,7 +364,7 @@ export async function approveTask(taskId: string, txId?: string): Promise<Task |
        SET status = 'completed', payment_tx_id = $1, platform_fee = $2,
            platform_wallet = $3, bounty_usd = $4, completed_at = $5, updated_at = $5
        WHERE id = $6 RETURNING *`,
-      [paymentTxId, platformFee.toFixed(6), PLATFORM_WALLET, bountyUsd, now, taskId]
+      [paymentTxId, platformFee.toFixed(6), effectivePlatformWallet, bountyUsd, now, taskId]
     );
 
     if (task.assignedAgent) {

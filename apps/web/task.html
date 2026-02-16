@@ -981,13 +981,19 @@
     var CONTRACT_ADDR_MAINNET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
     var PLATFORM_WALLET_TESTNET = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
     var PLATFORM_WALLET_MAINNET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
+    var PLATFORM_WALLET_FALLBACK_TESTNET = 'STRG5SJWZ4TE23RJY2Z9NJW9MVN23NMSEV4BX4QH';
+    var PLATFORM_WALLET_FALLBACK_MAINNET = 'SPRG5SJWZ4TE23RJY2Z9NJW9MVN23NMSEGVHH714';
 
     function getContractAddress(network) {
       return network === 'mainnet' ? CONTRACT_ADDR_MAINNET : CONTRACT_ADDR_TESTNET;
     }
 
-    function getPlatformWallet(network) {
-      return network === 'mainnet' ? PLATFORM_WALLET_MAINNET : PLATFORM_WALLET_TESTNET;
+    function getPlatformWallet(network, posterAddr, agentAddr) {
+      var primary = network === 'mainnet' ? PLATFORM_WALLET_MAINNET : PLATFORM_WALLET_TESTNET;
+      var fallback = network === 'mainnet' ? PLATFORM_WALLET_FALLBACK_MAINNET : PLATFORM_WALLET_FALLBACK_TESTNET;
+      // Use fallback if poster or agent is the platform wallet (stx-transfer? disallows self-transfers)
+      if (posterAddr === primary || agentAddr === primary) return fallback;
+      return primary;
     }
 
     /**
@@ -1058,6 +1064,24 @@
         var agentWallet = agentInfo.walletAddress;
         if (!agentWallet) { throw new Error('Agent has no wallet address'); }
 
+        // 2b. Get the sender's Stacks address from wallet provider
+        // (localStorage may have BTC address; we need the STX address for post-conditions)
+        var senderStxAddr = walletAddr;
+        try {
+          var provider = window.LeatherProvider || window.StacksProvider;
+          if (provider && provider.request) {
+            var addrResp = await provider.request('getAddresses');
+            var addrs = addrResp.result.addresses || [];
+            for (var ai = 0; ai < addrs.length; ai++) {
+              if (addrs[ai].address && (addrs[ai].address.startsWith('SP') || addrs[ai].address.startsWith('ST'))) {
+                senderStxAddr = addrs[ai].address;
+                break;
+              }
+            }
+          }
+        } catch(addrErr) { console.warn('[Approve] Could not get STX address from wallet:', addrErr); }
+        console.log('[Approve] Sender STX address:', senderStxAddr);
+
         // 3. Calculate bounty in microSTX
         var bountyStx = parseFloat(task.bounty);
         var bountyMicroStx = Math.round(bountyStx * 1000000);
@@ -1067,17 +1091,16 @@
 
         var taskNetwork = task.network || 'testnet';
         var contractAddr = getContractAddress(taskNetwork);
-        var platformWallet = getPlatformWallet(taskNetwork);
+        var platformWallet = getPlatformWallet(taskNetwork, senderStxAddr, agentWallet);
 
         console.log('[Approve] network=' + taskNetwork + ' contract=' + contractAddr + '.' + PAYMENT_CONTRACT_NAME);
         console.log('[Approve] agent=' + agentWallet + ' platform=' + platformWallet + ' bounty=' + bountyMicroStx + ' ustx');
 
         // Build post-conditions as hex strings (SIP-005 serialized)
-        // Only add post-condition if poster has a Stacks address (skip for BTC addresses)
         var cv = window.StacksTaskerWallet.cv;
         var postConditions = [];
-        if (walletAddr && walletAddr[0] === 'S') {
-          postConditions.push(cv.stxPostCondition(walletAddr, 'eq', bountyMicroStx, taskNetwork));
+        if (senderStxAddr && senderStxAddr[0] === 'S') {
+          postConditions.push(cv.stxPostCondition(senderStxAddr, 'eq', bountyMicroStx, taskNetwork));
         }
         var txId = await window.StacksTaskerWallet.callContract(
           contractAddr,
