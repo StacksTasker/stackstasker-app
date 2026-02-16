@@ -1089,14 +1089,15 @@
           }
         ];
 
+        var cv = window.StacksTaskerWallet.cv;
         var txId = await window.StacksTaskerWallet.callContract(
           PAYMENT_CONTRACT_ADDRESS,
           PAYMENT_CONTRACT_NAME,
           'pay-task',
           [
-            agentWallet,       // agent principal
-            platformWallet,    // platform principal
-            bountyMicroStx.toString(),  // bounty-ustx uint
+            cv.principal(agentWallet),      // agent principal (hex CV)
+            cv.principal(platformWallet),    // platform principal (hex CV)
+            cv.uint(bountyMicroStx),         // bounty-ustx uint (hex CV)
           ],
           postConditions
         );

@@ -1,12 +1,67 @@
 // StacksTasker - Shared wallet utility (connect/disconnect/persist)
-// Uses @stacks/connect for Stacks wallet integration
-// Recommends Leather wallet but supports any SIP-010 compatible wallet
+// Uses Leather wallet provider for Stacks wallet integration
 
 (function() {
   'use strict';
 
   var STORAGE_KEY = 'stx_address';
   var STORAGE_NAME_KEY = 'stx_wallet_name';
+
+  // ─── Clarity Value Serialization ───
+  // Minimal c32check decoder + Clarity CV serializer for stx_callContract
+
+  var C32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+  function c32Decode(input) {
+    var leading = 0;
+    for (var i = 0; i < input.length; i++) {
+      if (input[i] === '0') { leading++; } else { break; }
+    }
+    var n = BigInt(0);
+    for (var i = 0; i < input.length; i++) {
+      var v = C32.indexOf(input[i].toUpperCase());
+      if (v < 0) throw new Error('Invalid c32 char: ' + input[i]);
+      n = n * 32n + BigInt(v);
+    }
+    var hex = n.toString(16);
+    if (hex.length % 2) hex = '0' + hex;
+    var bytes = [];
+    for (var i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.substr(i, 2), 16));
+    }
+    for (var i = 0; i < leading; i++) { bytes.unshift(0); }
+    return bytes;
+  }
+
+  function decodeStacksAddress(address) {
+    if (address[0] !== 'S') throw new Error('Invalid Stacks address');
+    var version = C32.indexOf(address[1].toUpperCase());
+    var dataChars = address.substring(2);
+    var decoded = c32Decode(dataChars);
+    // 20 bytes hash160 + 4 bytes checksum
+    var hash160 = decoded.slice(0, 20);
+    return { version: version, hash160: hash160 };
+  }
+
+  function bytesToHex(bytes) {
+    return bytes.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  /** Serialize a Stacks address to a Clarity standard-principal CV hex string */
+  function cvPrincipal(address) {
+    var d = decodeStacksAddress(address);
+    // type 0x05 (standard principal) + version byte + 20-byte hash160
+    var bytes = [0x05, d.version].concat(d.hash160);
+    return '0x' + bytesToHex(bytes);
+  }
+
+  /** Serialize a number to a Clarity uint CV hex string */
+  function cvUint(value) {
+    // type 0x01 + 16 bytes big-endian uint128
+    var n = BigInt(value);
+    var hex = n.toString(16).padStart(32, '0');
+    return '0x01' + hex;
+  }
 
   // ─── Core Functions ───
 
@@ -26,29 +81,29 @@
     window.dispatchEvent(new CustomEvent('wallet-disconnected'));
   }
 
+  function getProvider() {
+    return window.LeatherProvider || window.StacksProvider || window.HiroWalletProvider;
+  }
+
   function connectWallet() {
-    // Check if @stacks/connect is available
-    if (typeof window.StacksProvider !== 'undefined' || typeof window.LeatherProvider !== 'undefined') {
-      // Use native wallet provider
+    if (getProvider()) {
       requestWalletConnection();
     } else {
-      // Show install prompt
       showInstallPrompt();
     }
   }
 
   function requestWalletConnection() {
     try {
-      // Try using the Stacks wallet provider
-      var provider = window.StacksProvider || window.LeatherProvider || window.HiroWalletProvider;
+      var provider = getProvider();
 
       if (provider && provider.request) {
         provider.request('getAddresses').then(function(response) {
           var addresses = response.result.addresses || [];
-          // Find the STX testnet address (starts with ST)
+          // Find the STX address (prefer SP for mainnet, ST for testnet)
           var stxAddr = null;
           for (var i = 0; i < addresses.length; i++) {
-            if (addresses[i].address && addresses[i].address.startsWith('ST')) {
+            if (addresses[i].address && (addresses[i].address.startsWith('SP') || addresses[i].address.startsWith('ST'))) {
               stxAddr = addresses[i].address;
               break;
             }
@@ -112,15 +167,15 @@
    * Call a Clarity smart contract via the Leather wallet provider.
    * Returns the broadcast transaction ID.
    *
-   * @param {string} contractAddress - Deployer address (e.g. ST...)
+   * @param {string} contractAddress - Deployer address (e.g. SP...)
    * @param {string} contractName    - Contract name (e.g. stackstasker-payments)
    * @param {string} functionName    - Public function name (e.g. pay-task)
-   * @param {Array}  functionArgs    - Clarity-encoded arguments (hex CV values)
+   * @param {Array}  functionArgs    - Hex-serialized Clarity value strings (use cv.principal / cv.uint)
    * @param {Array}  postConditions  - SIP-005 post-conditions array
    * @returns {Promise<string>}      - Broadcast transaction ID
    */
   async function callContract(contractAddress, contractName, functionName, functionArgs, postConditions) {
-    var provider = window.StacksProvider || window.LeatherProvider || window.HiroWalletProvider;
+    var provider = getProvider();
     if (!provider || !provider.request) {
       throw new Error('No Stacks wallet provider found. Install Leather wallet.');
     }
@@ -131,6 +186,12 @@
       functionArgs: functionArgs,
       postConditions: postConditions || [],
     });
+
+    // Handle JSON-RPC error responses
+    if (response && response.error) {
+      var errMsg = response.error.message || response.error.code || JSON.stringify(response.error);
+      throw new Error(errMsg);
+    }
 
     // Leather returns result.txid on successful broadcast
     var txId = response && response.result && (response.result.txid || response.result.txId);
@@ -144,7 +205,7 @@
    * Check if a native wallet provider (Leather/Hiro) is available
    */
   function hasWalletProvider() {
-    return !!(window.StacksProvider || window.LeatherProvider || window.HiroWalletProvider);
+    return !!getProvider();
   }
 
   // ─── Nav UI ───
@@ -176,6 +237,10 @@
     updateNav: updateNavWallet,
     callContract: callContract,
     hasWalletProvider: hasWalletProvider,
+    cv: {
+      principal: cvPrincipal,
+      uint: cvUint,
+    },
   };
 
   // Auto-initialize on DOM ready
