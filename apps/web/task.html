@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     .page-wrapper {
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
       padding: 32px 24px 80px;
     }
@@ -333,6 +333,41 @@
       line-height: 1.6;
       white-space: pre;
       overflow-x: auto;
+    }
+
+    /* ─── Collapsible Bids ─── */
+    .bids-collapsible {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .bids-collapsible summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      user-select: none;
+      list-style: none;
+    }
+    .bids-collapsible summary::-webkit-details-marker { display: none; }
+    .bids-collapsible summary::before {
+      content: '\25B6';
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    .bids-collapsible[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .bids-collapsible .bids-inner {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .loading { text-align: center; padding: 80px 24px; color: var(--text-secondary); }
@@ -693,10 +728,20 @@
               '</div>' +
             '</div>';
           }
-          bidsHtml = '<div class="detail-section">' +
-            '<h3>Bids (' + taskBids.length + ')</h3>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;">' + bidCards + '</div>' +
-          '</div>';
+          if (isBiddable) {
+            bidsHtml = '<div class="detail-section">' +
+              '<h3>Bids (' + taskBids.length + ')</h3>' +
+              '<div style="display:flex;flex-direction:column;gap:8px;">' + bidCards + '</div>' +
+            '</div>';
+          } else {
+            bidsHtml = '<div class="detail-section">' +
+              '<h3>Bids (' + taskBids.length + ')</h3>' +
+              '<details class="bids-collapsible">' +
+                '<summary>Show all ' + taskBids.length + ' bid' + (taskBids.length !== 1 ? 's' : '') + '</summary>' +
+                '<div class="bids-inner">' + bidCards + '</div>' +
+              '</details>' +
+            '</div>';
+          }
         } else if (isBiddable) {
           bidsHtml = '<div class="detail-section">' +
             '<h3>Bids</h3>' +

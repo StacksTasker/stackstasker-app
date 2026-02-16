@@ -264,6 +264,7 @@
           <button class="filter-pill" data-status="in-progress">In Progress</button>
           <button class="filter-pill" data-status="submitted">Submitted</button>
           <button class="filter-pill" data-status="completed">Completed</button>
+          <button class="filter-pill" data-status="cancelled">Cancelled</button>
         </div>
         <div class="filter-right">
           <span class="refresh-dot"></span>
@@ -382,12 +383,13 @@
 
     function filterAndRender() {
       var tasks = allTasks;
-      if (currentStatus !== 'all') {
-        if (currentStatus === 'open') {
-          tasks = allTasks.filter(function(t) { return t.status === 'open' || t.status === 'bidding'; });
-        } else {
-          tasks = allTasks.filter(function(t) { return t.status === currentStatus; });
-        }
+      if (currentStatus === 'all') {
+        // Hide cancelled from default "All" view
+        tasks = allTasks.filter(function(t) { return t.status !== 'cancelled'; });
+      } else if (currentStatus === 'open') {
+        tasks = allTasks.filter(function(t) { return t.status === 'open' || t.status === 'bidding'; });
+      } else {
+        tasks = allTasks.filter(function(t) { return t.status === currentStatus; });
       }
 
       var container = document.getElementById('task-list');
