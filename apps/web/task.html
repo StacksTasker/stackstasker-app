@@ -1072,18 +1072,11 @@
         console.log('[Approve] network=' + taskNetwork + ' contract=' + contractAddr + '.' + PAYMENT_CONTRACT_NAME);
         console.log('[Approve] agent=' + agentWallet + ' platform=' + platformWallet + ' bounty=' + bountyMicroStx + ' ustx');
 
-        // Build post-conditions: poster sends exactly bountyMicroStx STX
-        var postConditions = [
-          {
-            type: 'stx-postcondition',
-            address: walletAddr,
-            condition: 'eq',
-            amount: bountyMicroStx.toString(),
-          }
-        ];
-
-        // Serialize args with correct network version (auto-converts ST↔SP)
+        // Build post-conditions as hex strings (SIP-005 serialized)
         var cv = window.StacksTaskerWallet.cv;
+        var postConditions = [
+          cv.stxPostCondition(walletAddr, 'eq', bountyMicroStx, taskNetwork),
+        ];
         var txId = await window.StacksTaskerWallet.callContract(
           contractAddr,
           PAYMENT_CONTRACT_NAME,

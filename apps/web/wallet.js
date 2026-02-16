@@ -127,6 +127,26 @@
     return '0x01' + hex;
   }
 
+  /**
+   * Serialize an STX post-condition to hex string (SIP-005 format).
+   * Format: 0x00 (STX type) + 0x02 (standard principal) + version + hash160 + condition_code + 8-byte amount
+   */
+  function stxPostConditionHex(address, condition, amountUstx, network) {
+    var d = decodeStacksAddress(address);
+    var version = d.version;
+    // Convert address version to match target network
+    if (network === 'mainnet' && version === 26) version = 22;
+    else if (network === 'testnet' && version === 22) version = 26;
+
+    var condCodes = { eq: 0x01, gt: 0x02, gte: 0x03, lt: 0x04, lte: 0x05 };
+    var condByte = condCodes[condition] || 0x01;
+    var amt = BigInt(amountUstx);
+    var amtHex = amt.toString(16).padStart(16, '0'); // 8 bytes big-endian u64
+
+    var bytes = [0x00, 0x02, version].concat(d.hash160).concat([condByte]);
+    return bytesToHex(bytes) + amtHex;
+  }
+
   // ─── Core Functions ───
 
   function getConnectedAddress() {
@@ -308,6 +328,7 @@
       principal: cvPrincipal,
       principalForNetwork: cvPrincipalForNetwork,
       uint: cvUint,
+      stxPostCondition: stxPostConditionHex,
     },
   };
 
