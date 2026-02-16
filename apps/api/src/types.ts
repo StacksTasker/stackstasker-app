@@ -183,3 +183,50 @@ export interface PostMessageRequest {
   senderAddress: string;
   body: string;
 }
+
+// ─── Webhook Types ──────────────────────────────────────────
+
+export type WebhookEventType =
+  | 'task.created'
+  | 'task.status_changed'
+  | 'bid.placed'
+  | 'bid.accepted'
+  | 'message.new'
+  | 'task.completed'
+  | '*';
+
+export interface Webhook {
+  id: string;
+  ownerId: string;
+  url: string;
+  secret?: string;
+  events: WebhookEventType[];
+  filterCategory?: TaskCategory;
+  filterTaskId?: string;
+  active: boolean;
+  description: string;
+  createdAt: string;
+  lastTriggeredAt?: string;
+}
+
+export interface RegisterWebhookRequest {
+  ownerId: string;
+  url: string;
+  events: WebhookEventType[];
+  filterCategory?: TaskCategory;
+  filterTaskId?: string;
+  description?: string;
+}
+
+export interface WebhookEvent {
+  id: string;
+  type: WebhookEventType;
+  timestamp: string;
+  data: {
+    task?: Task;
+    bid?: Bid;
+    message?: Message;
+    previousStatus?: TaskStatus;
+    newStatus?: TaskStatus;
+  };
+}

@@ -1,10 +1,16 @@
 // StacksTasker - Demo AI Agent Worker
 // Polls for tasks, bids on them, completes work, submits results, gets paid
 
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { createHmac } from 'crypto';
+
 const API_URL = process.env.API_URL ?? 'http://localhost:3003';
 const AGENT_NAME = process.env.AGENT_NAME ?? 'ClaudeWorker-1';
 const AGENT_WALLET = process.env.AGENT_WALLET ?? 'ST1DEMO_AGENT_WALLET_ADDRESS';
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL ?? '3000', 10);
+const WEBHOOK_MODE = process.env.WEBHOOK_MODE === 'true';
+const WEBHOOK_PORT = parseInt(process.env.WEBHOOK_PORT ?? '3010', 10);
+const WEBHOOK_HOST = process.env.WEBHOOK_HOST ?? `http://localhost:${WEBHOOK_PORT}`;
 
 interface Task {
   id: string;
@@ -294,6 +300,148 @@ async function agentLoop(agentId: string): Promise<void> {
   }
 }
 
+// ─── Webhook Mode ──────────────────────────────────────────
+
+interface WebhookEvent {
+  id: string;
+  type: string;
+  timestamp: string;
+  data: {
+    task?: Task;
+    bid?: Bid;
+    message?: { id: string; taskId: string; body: string };
+    previousStatus?: string;
+    newStatus?: string;
+  };
+}
+
+function verifySignature(payload: string, signature: string, secret: string): boolean {
+  const expected = createHmac('sha256', secret).update(payload).digest('hex');
+  return signature === `sha256=${expected}`;
+}
+
+async function handleWebhookEvent(event: WebhookEvent, agentId: string): Promise<void> {
+  const { type, data } = event;
+
+  if (type === 'task.created' && data.task) {
+    const task = data.task;
+    console.log(`\n[${AGENT_NAME}] [webhook] New task: "${task.title}" (${task.bounty} STX)`);
+
+    // Place a bid
+    const bidRes = await fetch(`${API_URL}/tasks/${task.id}/bid`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        agentId,
+        amount: task.bounty,
+        message: `I can handle this ${task.category} task efficiently. Estimated delivery in under 2 minutes.`,
+        estimatedTime: '2 minutes',
+      }),
+    });
+
+    if (bidRes.ok) {
+      const bid = await bidRes.json() as Bid;
+      console.log(`[${AGENT_NAME}] [webhook] Bid placed: ${bid.id}`);
+    } else {
+      console.log(`[${AGENT_NAME}] [webhook] Bid failed: ${(await bidRes.json() as { error: string }).error}`);
+    }
+  }
+
+  if (type === 'bid.accepted' && data.task) {
+    const task = data.task;
+    if (task.status === 'assigned') {
+      console.log(`[${AGENT_NAME}] [webhook] Bid accepted for task ${task.id}. Starting work...`);
+
+      await fetch(`${API_URL}/tasks/${task.id}/start`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ agentId }),
+      });
+
+      const workTime = 1000 + Math.random() * 2000;
+      await sleep(workTime);
+
+      const result = doWork(task);
+      console.log(`[${AGENT_NAME}] [webhook] Work complete. Submitting result...`);
+
+      await fetch(`${API_URL}/tasks/${task.id}/submit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ agentId, result }),
+      });
+    }
+  }
+
+  if (type === 'task.status_changed' && data.task) {
+    console.log(`[${AGENT_NAME}] [webhook] Task ${data.task.id} status: ${data.previousStatus} → ${data.newStatus}`);
+  }
+}
+
+async function startWebhookServer(agentId: string, secret: string): Promise<void> {
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== 'POST' || req.url !== '/') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(chunk as Buffer);
+    }
+    const body = Buffer.concat(chunks).toString();
+
+    // Verify HMAC signature
+    const signature = req.headers['x-stackstasker-signature'] as string;
+    if (!signature || !verifySignature(body, signature, secret)) {
+      console.log(`[${AGENT_NAME}] [webhook] Invalid signature, rejecting`);
+      res.writeHead(401);
+      res.end('Invalid signature');
+      return;
+    }
+
+    try {
+      const event = JSON.parse(body) as WebhookEvent;
+      // Respond immediately, process async
+      res.writeHead(200);
+      res.end('ok');
+      await handleWebhookEvent(event, agentId);
+    } catch (err) {
+      console.error(`[${AGENT_NAME}] [webhook] Error processing event:`, err);
+      res.writeHead(500);
+      res.end('Error');
+    }
+  });
+
+  return new Promise((resolve) => {
+    server.listen(WEBHOOK_PORT, () => {
+      console.log(`[${AGENT_NAME}] Webhook server listening on port ${WEBHOOK_PORT}`);
+      resolve();
+    });
+  });
+}
+
+async function registerWebhook(agentId: string): Promise<string> {
+  const res = await fetch(`${API_URL}/webhooks`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      ownerId: agentId,
+      url: WEBHOOK_HOST,
+      events: ['task.created', 'bid.accepted', 'task.status_changed'],
+      description: `Agent worker ${AGENT_NAME}`,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to register webhook: ${await res.text()}`);
+  }
+
+  const webhook = await res.json() as { id: string; secret: string };
+  console.log(`[${AGENT_NAME}] Webhook registered: ${webhook.id}`);
+  return webhook.secret;
+}
+
 /**
  * Main entry point
  */
@@ -302,6 +450,7 @@ async function main() {
   console.log(`  StacksTasker Agent Worker: ${AGENT_NAME}`);
   console.log(`  API: ${API_URL}`);
   console.log(`  Wallet: ${AGENT_WALLET}`);
+  console.log(`  Mode: ${WEBHOOK_MODE ? 'webhook' : 'polling'}`);
   console.log('='.repeat(60));
   console.log('');
 
@@ -331,8 +480,15 @@ async function main() {
   console.log(`[${AGENT_NAME}] Registered as agent ${agent.id}`);
   console.log('');
 
-  // Start work loop
-  await agentLoop(agent.id);
+  if (WEBHOOK_MODE) {
+    // Webhook-driven mode: register webhook + start HTTP server
+    const secret = await registerWebhook(agent.id);
+    await startWebhookServer(agent.id, secret);
+    console.log(`[${AGENT_NAME}] Running in webhook mode. Waiting for events...`);
+  } else {
+    // Polling mode (default)
+    await agentLoop(agent.id);
+  }
 }
 
 main().catch(err => {

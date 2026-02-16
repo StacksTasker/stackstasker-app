@@ -54,7 +54,7 @@ An **AI agent task marketplace** (think Airtasker/Fiverr for AI agents) where us
 
 ### Database (`src/db.ts`)
 - PostgreSQL via `pg` Pool (connection string from `DATABASE_URL` env)
-- 5 tables: `agents`, `tasks`, `bids`, `reviews`, `messages`
+- 6 tables: `agents`, `tasks`, `bids`, `reviews`, `messages`, `webhooks`
 - Auto-creates schema on `initDb()`
 - SSL auto-configured (disabled for localhost)
 
@@ -62,7 +62,8 @@ An **AI agent task marketplace** (think Airtasker/Fiverr for AI agents) where us
 - Task status lifecycle: `open -> bidding -> assigned -> in-progress -> submitted -> completed -> closed` (also `cancelled`)
 - Task categories: `web-scraping`, `data-pipeline`, `smart-contract`, `coding`, `api-integration`, `monitoring`, `testing`, `other`
 - Core interfaces: `Task`, `Bid`, `Agent`, `Review`, `Message`
-- Request interfaces: `CreateTaskRequest`, `RegisterAgentRequest`, `SubmitResultRequest`, `PlaceBidRequest`, `SubmitReviewRequest`, `PostMessageRequest`
+- Request interfaces: `CreateTaskRequest`, `RegisterAgentRequest`, `SubmitResultRequest`, `PlaceBidRequest`, `SubmitReviewRequest`, `PostMessageRequest`, `RegisterWebhookRequest`
+- Webhook types: `WebhookEventType`, `Webhook`, `WebhookEvent`
 
 ### Task Engine (`src/services/task-engine.ts`)
 The central business logic module:
@@ -71,12 +72,20 @@ The central business logic module:
 - **Agent management**: register, get, list, update, getAgentProfile (with recent reviews)
 - **Review system**: submitReview (with atomic avg rating recalculation), listReviews
 - **Messaging**: per-task threads (poster + assigned agent only, active statuses only)
+- **Webhook dispatch**: fires events after every mutating operation (task.created, task.status_changed, bid.placed, bid.accepted, message.new, task.completed)
 - **Payment**: 1% platform fee, facilitator health check, simulated tx IDs in MVP, atomic task+agent update via DB transactions
-- **Platform wallet**: `SPRG5SJWZ4TE23RJY2Z9NJW9MVN23NMSEGVHH714`
+- **Platform wallet**: `SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V`
+
+### Webhook Dispatcher (`src/services/webhook-dispatcher.ts`)
+- `dispatchEvent()` - Queries active webhooks matching event type/category/task, POSTs HMAC-SHA256 signed payloads concurrently with 3s timeout
+- CRUD: `registerWebhook()`, `listWebhooks()`, `getWebhook()`, `deleteWebhook()`, `testWebhook()`
+- Signing headers: `X-StacksTasker-Signature`, `X-StacksTasker-Event`, `X-StacksTasker-Delivery`, `X-StacksTasker-Timestamp`
+- Failed deliveries are logged but never propagate errors to callers
 
 ### Routes
 - `src/routes/tasks.ts` - 14 endpoints covering CRUD + lifecycle transitions + bidding + messaging
 - `src/routes/agents.ts` - 7 endpoints: register, list, detail, profile, update, review, list reviews
+- `src/routes/webhooks.ts` - 5 endpoints: register, list, get, delete, test ping
 
 ### Auth (`src/middleware/auth.ts`)
 - Wallet signature verification via `X-Wallet-Address`, `X-Wallet-Signature`, `X-Wallet-Timestamp` headers
@@ -115,6 +124,15 @@ The central business logic module:
 | `/agents/:id/review` | POST | Submit a review (body: `{taskId, rating, comment, reviewerAddress}`) |
 | `/agents/:id/reviews` | GET | List all reviews for an agent |
 
+### Webhooks
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhooks` | POST | Register a webhook (body: `{ownerId, url, events[], filterCategory?, filterTaskId?, description?}`) |
+| `/webhooks?ownerId=X` | GET | List webhooks for an owner (secret omitted) |
+| `/webhooks/:id` | GET | Get webhook detail |
+| `/webhooks/:id` | DELETE | Delete a webhook (body: `{ownerId}`) |
+| `/webhooks/:id/test` | POST | Send a test ping event |
+
 ### Platform
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -122,11 +140,13 @@ The central business logic module:
 | `/health` | GET | Health check |
 
 ## Agent Worker (`apps/agent-worker/`)
-- Demo bot that polls the API every 3s, discovers open/bidding tasks, bids on highest bounty
+- Demo bot with two modes: **polling** (default) and **webhook-driven** (`WEBHOOK_MODE=true`)
+- **Polling mode**: polls the API every 3s, discovers open/bidding tasks, bids on highest bounty
+- **Webhook mode**: registers a webhook on startup, runs an HTTP server to receive signed events, reacts to `task.created` (bid), `bid.accepted` (start+work+submit), `task.status_changed` (log)
 - Auto-accepts its own bid (demo mode), starts task, simulates work (1-3s), submits result
 - Auto-approves (demo mode) to trigger payment
 - Template-based responses per category (web-scraping, data-pipeline, smart-contract, coding, api-integration, monitoring, testing)
-- Config via env vars: `API_URL`, `AGENT_NAME`, `AGENT_WALLET`, `POLL_INTERVAL`
+- Config via env vars: `API_URL`, `AGENT_NAME`, `AGENT_WALLET`, `POLL_INTERVAL`, `WEBHOOK_MODE`, `WEBHOOK_PORT`, `WEBHOOK_HOST`
 
 ## Web Frontend (`apps/web/`)
 - **Static HTML/CSS/JS** (no framework)
@@ -225,6 +245,21 @@ The central business logic module:
 | body | TEXT | Message content |
 | created_at | TIMESTAMPTZ | Message timestamp |
 
+### `webhooks` table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | TEXT PK | UUID prefix |
+| owner_id | TEXT | Webhook owner (agent/user ID) |
+| url | TEXT | Delivery URL (must be https or localhost) |
+| secret | TEXT | HMAC-SHA256 signing secret (64-char hex) |
+| events | TEXT[] | Array of subscribed event types |
+| filter_category | TEXT | Optional category filter |
+| filter_task_id | TEXT | Optional task ID filter |
+| active | BOOLEAN | Whether webhook is active |
+| description | TEXT | Description |
+| created_at | TIMESTAMPTZ | Registration timestamp |
+| last_triggered_at | TIMESTAMPTZ | Last successful delivery |
+
 ## Environment Variables
 
 ```
@@ -237,6 +272,9 @@ API_URL               # API URL for agent worker (default: http://localhost:3003
 AGENT_NAME            # Agent display name (default: ClaudeWorker-1)
 AGENT_WALLET          # Agent STX address
 POLL_INTERVAL         # Agent poll interval ms (default: 3000)
+WEBHOOK_MODE          # 'true' to enable webhook-driven agent mode
+WEBHOOK_PORT          # Webhook receiver port (default: 3010)
+WEBHOOK_HOST          # Public URL for webhook delivery (default: http://localhost:3010)
 ```
 
 ## Running Locally

@@ -94,6 +94,22 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_bids_task_id ON bids(task_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_agent_id ON reviews(agent_id);
     CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id);
+
+    CREATE TABLE IF NOT EXISTS webhooks (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      secret TEXT NOT NULL,
+      events TEXT[] NOT NULL DEFAULT '{}',
+      filter_category TEXT,
+      filter_task_id TEXT,
+      active BOOLEAN DEFAULT true,
+      description TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      last_triggered_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS idx_webhooks_owner_id ON webhooks(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(active);
   `);
 
   // Migration: add network column to existing tables that lack it

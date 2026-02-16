@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'crypto';
 import { query, getClient } from '../db.js';
+import { dispatchEvent } from './webhook-dispatcher.js';
 
 /** Convert STX to microSTX */
 function stxToMicroStx(stx: number | string): string {
@@ -130,7 +131,9 @@ export async function createTask(req: CreateTaskRequest): Promise<Task> {
   );
 
   console.log(`[TaskEngine] Created task ${id}: "${req.title}" (${req.bounty} STX) [${network}]`);
-  return rowToTask(rows[0]);
+  const createdTask = rowToTask(rows[0]);
+  await dispatchEvent('task.created', { task: createdTask }, { taskId: createdTask.id, category: createdTask.category });
+  return createdTask;
 }
 
 export async function getTask(id: string): Promise<Task | undefined> {
@@ -190,7 +193,9 @@ export async function acceptTask(taskId: string, agentId: string): Promise<Task 
   await query('UPDATE agents SET last_active_at = $1 WHERE id = $2', [now, agentId]);
 
   console.log(`[TaskEngine] Task ${taskId} assigned to agent ${agent.name}`);
-  return rowToTask(rows[0]);
+  const acceptedTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: acceptedTask, previousStatus: task.status, newStatus: 'assigned' }, { taskId, category: acceptedTask.category });
+  return acceptedTask;
 }
 
 export async function startTask(taskId: string, agentId: string): Promise<Task | { error: string }> {
@@ -207,7 +212,9 @@ export async function startTask(taskId: string, agentId: string): Promise<Task |
   await query('UPDATE agents SET last_active_at = $1 WHERE id = $2', [now, agentId]);
 
   console.log(`[TaskEngine] Task ${taskId} started by agent ${agentId}`);
-  return rowToTask(rows[0]);
+  const startedTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: startedTask, previousStatus: 'assigned', newStatus: 'in-progress' }, { taskId, category: startedTask.category });
+  return startedTask;
 }
 
 export async function cancelTask(taskId: string, posterAddress: string): Promise<Task | { error: string }> {
@@ -223,7 +230,9 @@ export async function cancelTask(taskId: string, posterAddress: string): Promise
   );
 
   console.log(`[TaskEngine] Task ${taskId} cancelled by poster`);
-  return rowToTask(rows[0]);
+  const cancelledTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: cancelledTask, previousStatus: task.status, newStatus: 'cancelled' }, { taskId, category: cancelledTask.category });
+  return cancelledTask;
 }
 
 export async function submitResult(
@@ -243,7 +252,9 @@ export async function submitResult(
   );
 
   console.log(`[TaskEngine] Task ${taskId} result submitted by agent ${agentId}`);
-  return rowToTask(rows[0]);
+  const submittedTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: submittedTask, previousStatus: task.status, newStatus: 'submitted' }, { taskId, category: submittedTask.category });
+  return submittedTask;
 }
 
 export async function rejectResult(taskId: string, posterAddress: string, reason: string): Promise<Task | { error: string }> {
@@ -259,7 +270,9 @@ export async function rejectResult(taskId: string, posterAddress: string, reason
   );
 
   console.log(`[TaskEngine] Task ${taskId} result rejected: ${reason}`);
-  return rowToTask(rows[0]);
+  const rejectedTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: rejectedTask, previousStatus: 'submitted', newStatus: 'assigned' }, { taskId, category: rejectedTask.category });
+  return rejectedTask;
 }
 
 export async function approveTask(taskId: string, txId?: string): Promise<Task | { error: string }> {
@@ -339,7 +352,11 @@ export async function approveTask(taskId: string, txId?: string): Promise<Task |
 
     const txType = txId ? 'ON-CHAIN' : 'SIMULATED';
     console.log(`[TaskEngine] Task ${taskId} completed! [${txType}] Payment: ${paymentTxId} (${task.bounty} STX, fee: ${platformFee.toFixed(6)} STX)`);
-    return rowToTask(rows[0]);
+    const completedTask = rowToTask(rows[0]);
+    const ctx = { taskId, category: completedTask.category };
+    await dispatchEvent('task.status_changed', { task: completedTask, previousStatus: 'submitted', newStatus: 'completed' }, ctx);
+    await dispatchEvent('task.completed', { task: completedTask }, ctx);
+    return completedTask;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -361,7 +378,9 @@ export async function closeTask(taskId: string, posterAddress: string): Promise<
   );
 
   console.log(`[TaskEngine] Task ${taskId} closed by poster`);
-  return rowToTask(rows[0]);
+  const closedTask = rowToTask(rows[0]);
+  await dispatchEvent('task.status_changed', { task: closedTask, previousStatus: 'completed', newStatus: 'closed' }, { taskId, category: closedTask.category });
+  return closedTask;
 }
 
 // ─── Bidding Operations ──────────────────────────────────────────
@@ -403,7 +422,16 @@ export async function placeBid(taskId: string, req: PlaceBidRequest): Promise<Bi
   await query('UPDATE agents SET last_active_at = $1 WHERE id = $2', [now, req.agentId]);
 
   console.log(`[TaskEngine] Bid ${id} placed on task ${taskId} by agent ${agent.name} (${req.amount} STX)`);
-  return rowToBid(rows[0]);
+  const placedBid = rowToBid(rows[0]);
+  const ctx = { taskId, category: task.category };
+  await dispatchEvent('bid.placed', { bid: placedBid }, ctx);
+  if (task.status === 'open') {
+    const updatedTask = await getTask(taskId);
+    if (updatedTask) {
+      await dispatchEvent('task.status_changed', { task: updatedTask, previousStatus: 'open', newStatus: 'bidding' }, ctx);
+    }
+  }
+  return placedBid;
 }
 
 export async function listBids(taskId: string): Promise<Bid[]> {
@@ -443,7 +471,11 @@ export async function acceptBid(taskId: string, bidId: string, posterAddress: st
   await query('UPDATE agents SET last_active_at = $1 WHERE id = $2', [now, bid.agentId]);
 
   console.log(`[TaskEngine] Bid ${bidId} accepted for task ${taskId}, assigned to ${agent.name}`);
-  return rowToTask(rows[0]);
+  const assignedTask = rowToTask(rows[0]);
+  const ctx = { taskId, category: assignedTask.category };
+  await dispatchEvent('bid.accepted', { task: assignedTask, bid }, ctx);
+  await dispatchEvent('task.status_changed', { task: assignedTask, previousStatus: task.status, newStatus: 'assigned' }, ctx);
+  return assignedTask;
 }
 
 // ─── Agent Operations ──────────────────────────────────────────
@@ -622,7 +654,9 @@ export async function postMessage(taskId: string, req: PostMessageRequest): Prom
   );
 
   console.log(`[TaskEngine] Message ${id} posted on task ${taskId} by ${req.senderAddress.slice(0, 8)}...`);
-  return rowToMessage(rows[0]);
+  const postedMsg = rowToMessage(rows[0]);
+  await dispatchEvent('message.new', { message: postedMsg }, { taskId, category: task.category });
+  return postedMsg;
 }
 
 export async function listMessages(taskId: string): Promise<Message[]> {

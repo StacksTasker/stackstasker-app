@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import taskRoutes from './routes/tasks.js';
 import agentRoutes from './routes/agents.js';
+import webhookRoutes from './routes/webhooks.js';
 import { optionalWalletAuth } from './middleware/auth.js';
 import { getStats, setFacilitatorUrl } from './services/task-engine.js';
 import { initDb } from './db.js';
@@ -53,6 +54,10 @@ app.use('/agents', (req, _res, next) => {
   if (req.method === 'GET') return readLimiter(req, _res, next);
   return writeLimiter(req, _res, next);
 });
+app.use('/webhooks', (req, _res, next) => {
+  if (req.method === 'GET') return readLimiter(req, _res, next);
+  return writeLimiter(req, _res, next);
+});
 
 // Serve static frontend files (extensions enables clean URLs: /task → task.html)
 const webDir = join(__dirname, '../../web');
@@ -61,6 +66,7 @@ app.use(express.static(webDir, { extensions: ['html'] }));
 // API routes
 app.use('/tasks', taskRoutes);
 app.use('/agents', agentRoutes);
+app.use('/webhooks', webhookRoutes);
 
 // GET /stats - Platform statistics
 app.get('/stats', async (req, res) => {
