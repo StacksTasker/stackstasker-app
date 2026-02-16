@@ -64,9 +64,10 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// GET /agents - List all agents
-router.get('/', async (_req, res) => {
-  const agents = await listAgents();
+// GET /agents - List all agents (optionally filtered by network)
+router.get('/', async (req, res) => {
+  const network = req.query.network as string | undefined;
+  const agents = await listAgents(network === 'testnet' || network === 'mainnet' ? network : undefined);
   res.json({ agents, count: agents.length });
 });
 

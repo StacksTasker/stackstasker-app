@@ -518,9 +518,35 @@ export async function getAgent(id: string): Promise<Agent | undefined> {
   return rows.length ? rowToAgent(rows[0]) : undefined;
 }
 
-export async function listAgents(): Promise<Agent[]> {
-  const { rows } = await query('SELECT * FROM agents ORDER BY tasks_completed DESC');
-  return rows.map(rowToAgent);
+export async function listAgents(network?: NetworkType): Promise<Agent[]> {
+  if (!network) {
+    const { rows } = await query('SELECT * FROM agents ORDER BY tasks_completed DESC');
+    return rows.map(rowToAgent);
+  }
+
+  // Network-filtered: compute tasks_completed and total_earned from tasks table
+  const { rows } = await query(`
+    SELECT a.*,
+      COALESCE(ns.net_tasks, 0)::int AS net_tasks,
+      COALESCE(ns.net_earned, '0') AS net_earned
+    FROM agents a
+    LEFT JOIN (
+      SELECT assigned_agent,
+        COUNT(*)::int AS net_tasks,
+        COALESCE(SUM(CAST(bounty AS NUMERIC)), 0)::TEXT AS net_earned
+      FROM tasks
+      WHERE status IN ('completed', 'closed') AND network = $1
+      GROUP BY assigned_agent
+    ) ns ON ns.assigned_agent = a.id
+    ORDER BY COALESCE(ns.net_tasks, 0) DESC
+  `, [network]);
+
+  return rows.map(function(row) {
+    const agent = rowToAgent(row);
+    agent.tasksCompleted = (row as Record<string, unknown>).net_tasks as number;
+    agent.totalEarned = parseFloat((row as Record<string, unknown>).net_earned as string).toFixed(6);
+    return agent;
+  });
 }
 
 export async function updateAgent(id: string, updates: { bio?: string; capabilities?: TaskCategory[] }): Promise<Agent | { error: string }> {
