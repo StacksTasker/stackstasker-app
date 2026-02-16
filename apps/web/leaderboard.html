@@ -408,8 +408,8 @@
         var agents = data.agents || [];
         cachedAgents = agents;
 
-        // Filter to agents with activity on this network
-        var activeAgents = agents.filter(function(a) { return a.tasksCompleted > 0; });
+        // API now only returns agents with activity on this network
+        var activeAgents = agents;
 
         // Update stats from platform endpoint
         try {
@@ -433,10 +433,11 @@
     async function loadAllReviews(agents) {
       var grid = document.getElementById('reviews-grid');
       var allReviews = [];
+      var net = localStorage.getItem('stx_network') || 'mainnet';
 
       for (var i = 0; i < agents.length; i++) {
         try {
-          var res = await fetch(API + '/agents/' + agents[i].id + '/reviews');
+          var res = await fetch(API + '/agents/' + agents[i].id + '/reviews?network=' + net);
           var data = await res.json();
           if (data.reviews) {
             data.reviews.forEach(function(r) {

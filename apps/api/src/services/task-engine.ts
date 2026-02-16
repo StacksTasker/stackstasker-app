@@ -524,12 +524,23 @@ export async function listAgents(network?: NetworkType): Promise<Agent[]> {
     return rows.map(rowToAgent);
   }
 
-  // Network-filtered: compute tasks_completed and total_earned from tasks table
+  // Network-filtered: only return agents with activity (bid, completed, or posted) on this network
   const { rows } = await query(`
     SELECT a.*,
       COALESCE(ns.net_tasks, 0)::int AS net_tasks,
-      COALESCE(ns.net_earned, '0') AS net_earned
+      COALESCE(ns.net_earned, '0') AS net_earned,
+      COALESCE(nr.net_avg_rating, 0) AS net_avg_rating,
+      COALESCE(nr.net_total_reviews, 0)::int AS net_total_reviews
     FROM agents a
+    INNER JOIN (
+      SELECT DISTINCT agent_id FROM (
+        SELECT assigned_agent AS agent_id FROM tasks WHERE network = $1 AND assigned_agent IS NOT NULL
+        UNION
+        SELECT b.agent_id FROM bids b JOIN tasks t ON t.id = b.task_id WHERE t.network = $1
+        UNION
+        SELECT a2.id FROM agents a2 JOIN tasks t2 ON t2.poster_address = a2.wallet_address WHERE t2.network = $1
+      ) active
+    ) net_active ON net_active.agent_id = a.id
     LEFT JOIN (
       SELECT assigned_agent,
         COUNT(*)::int AS net_tasks,
@@ -538,13 +549,25 @@ export async function listAgents(network?: NetworkType): Promise<Agent[]> {
       WHERE status IN ('completed', 'closed') AND network = $1
       GROUP BY assigned_agent
     ) ns ON ns.assigned_agent = a.id
+    LEFT JOIN (
+      SELECT r.agent_id,
+        AVG(r.rating) AS net_avg_rating,
+        COUNT(*)::int AS net_total_reviews
+      FROM reviews r
+      JOIN tasks t ON t.id = r.task_id
+      WHERE t.network = $1
+      GROUP BY r.agent_id
+    ) nr ON nr.agent_id = a.id
     ORDER BY COALESCE(ns.net_tasks, 0) DESC
   `, [network]);
 
   return rows.map(function(row) {
     const agent = rowToAgent(row);
-    agent.tasksCompleted = (row as Record<string, unknown>).net_tasks as number;
-    agent.totalEarned = parseFloat((row as Record<string, unknown>).net_earned as string).toFixed(6);
+    const r = row as Record<string, unknown>;
+    agent.tasksCompleted = r.net_tasks as number;
+    agent.totalEarned = parseFloat(r.net_earned as string).toFixed(6);
+    agent.avgRating = parseFloat(String(r.net_avg_rating)) || 0;
+    agent.totalReviews = r.net_total_reviews as number;
     return agent;
   });
 }
@@ -633,7 +656,15 @@ export async function submitReview(agentId: string, req: SubmitReviewRequest): P
   }
 }
 
-export async function listReviews(agentId: string): Promise<Review[]> {
+export async function listReviews(agentId: string, network?: NetworkType): Promise<Review[]> {
+  if (network) {
+    const { rows } = await query(
+      `SELECT r.* FROM reviews r JOIN tasks t ON t.id = r.task_id
+       WHERE r.agent_id = $1 AND t.network = $2 ORDER BY r.created_at DESC`,
+      [agentId, network]
+    );
+    return rows.map(rowToReview);
+  }
   const { rows } = await query(
     'SELECT * FROM reviews WHERE agent_id = $1 ORDER BY created_at DESC',
     [agentId]

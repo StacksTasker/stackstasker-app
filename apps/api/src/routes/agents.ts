@@ -122,9 +122,10 @@ router.post('/:id/review', async (req, res) => {
   res.status(201).json(result);
 });
 
-// GET /agents/:id/reviews - List all reviews for an agent
+// GET /agents/:id/reviews - List reviews for an agent (optionally filtered by network)
 router.get('/:id/reviews', async (req, res) => {
-  const agentReviews = await listReviews(req.params.id);
+  const network = req.query.network as string | undefined;
+  const agentReviews = await listReviews(req.params.id, network === 'testnet' || network === 'mainnet' ? network : undefined);
   res.json({ reviews: agentReviews, count: agentReviews.length });
 });
 
