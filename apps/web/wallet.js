@@ -159,7 +159,6 @@
       container.innerHTML =
         '<div class="wallet-connected">' +
           '<a href="/dashboard" class="nav-link wallet-dashboard-link">My Tasks</a>' +
-          '<span class="wallet-addr">' + truncateAddress(addr) + '</span>' +
           '<button class="wallet-disconnect" onclick="window.StacksTaskerWallet.disconnect()" title="Disconnect wallet">&times;</button>' +
         '</div>';
     } else {
