@@ -473,7 +473,18 @@
     }
 
     loadLeaderboard();
-    setInterval(loadLeaderboard, 5000);
+    var pollTimer = null;
+    function startPolling() {
+      if (!pollTimer) pollTimer = setInterval(loadLeaderboard, 30000);
+    }
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) stopPolling();
+      else { loadLeaderboard(); startPolling(); }
+    });
+    startPolling();
 
     // Re-fetch when network changes
     window.addEventListener('network-changed', function() {

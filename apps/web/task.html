@@ -1123,7 +1123,18 @@
     }
 
     loadTask();
-    setInterval(loadTask, 3000);
+    var pollTimer = null;
+    function startPolling() {
+      if (!pollTimer) pollTimer = setInterval(loadTask, 10000);
+    }
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) stopPolling();
+      else { loadTask(); startPolling(); }
+    });
+    startPolling();
   </script>
   <script src="nav-toggle.js"></script>
   <script src="wallet.js"></script>

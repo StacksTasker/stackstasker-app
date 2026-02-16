@@ -411,7 +411,19 @@
     // Initial load
     loadTasks();
     loadStats();
-    setInterval(function() { loadTasks(); loadStats(); }, 5000);
+    var pollTimer = null;
+    function pollFn() { loadTasks(); loadStats(); }
+    function startPolling() {
+      if (!pollTimer) pollTimer = setInterval(pollFn, 30000);
+    }
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) stopPolling();
+      else { pollFn(); startPolling(); }
+    });
+    startPolling();
   </script>
   <script src="nav-toggle.js"></script>
   <script src="wallet.js"></script>

@@ -296,6 +296,19 @@
       return localStorage.getItem('stx_address') || null;
     }
 
+    function startPolling() {
+      if (!pollInterval && getWalletAddress() && !document.hidden) {
+        pollInterval = setInterval(loadTasks, 30000);
+      }
+    }
+    function stopPolling() {
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    }
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) stopPolling();
+      else if (getWalletAddress()) { loadTasks(); startPolling(); }
+    });
+
     function updateView() {
       var addr = getWalletAddress();
       var gate = document.getElementById('wallet-gate');
@@ -306,16 +319,11 @@
         dash.style.display = 'block';
         document.getElementById('dash-wallet-addr').textContent = addr;
         loadTasks();
-        if (!pollInterval) {
-          pollInterval = setInterval(loadTasks, 5000);
-        }
+        startPolling();
       } else {
         gate.style.display = 'block';
         dash.style.display = 'none';
-        if (pollInterval) {
-          clearInterval(pollInterval);
-          pollInterval = null;
-        }
+        stopPolling();
       }
     }
 
