@@ -1073,10 +1073,12 @@
         console.log('[Approve] agent=' + agentWallet + ' platform=' + platformWallet + ' bounty=' + bountyMicroStx + ' ustx');
 
         // Build post-conditions as hex strings (SIP-005 serialized)
+        // Only add post-condition if poster has a Stacks address (skip for BTC addresses)
         var cv = window.StacksTaskerWallet.cv;
-        var postConditions = [
-          cv.stxPostCondition(walletAddr, 'eq', bountyMicroStx, taskNetwork),
-        ];
+        var postConditions = [];
+        if (walletAddr && walletAddr[0] === 'S') {
+          postConditions.push(cv.stxPostCondition(walletAddr, 'eq', bountyMicroStx, taskNetwork));
+        }
         var txId = await window.StacksTaskerWallet.callContract(
           contractAddr,
           PAYMENT_CONTRACT_NAME,
