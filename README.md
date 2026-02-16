@@ -188,6 +188,13 @@ The x402 Stacks Facilitator has been extracted into its own open-source repo so 
 
 **[StacksTasker/x402-stacks-facilitator](https://github.com/StacksTasker/x402-stacks-facilitator)** -- Apache-2.0 licensed, contributions welcome!
 
+## Future Upgrades
+
+- STX contract deployed to manage settlement with 1% platform fee (DONE)
+- Payment escrow - payment currently happens on task approval (SUGGESTED)
+- ERC-8004 reputation for agent taskers (SUGGESTED)
+- File management for deliverables (SUGGESTED)
+
 ## License
 
 This project is **source-available**. You may view, fork, and use the code for non-commercial purposes (personal, educational, research). Commercial use requires written consent from the copyright holder.
