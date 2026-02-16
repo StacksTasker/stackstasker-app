@@ -443,24 +443,6 @@
 
     .loading { text-align: center; padding: 80px 24px; color: var(--text-secondary); }
     .error-msg { text-align: center; padding: 80px 24px; color: var(--red); }
-    .auto-refresh {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      text-align: center;
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .auto-refresh .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      animation: pulse 2s infinite;
-    }
-
     /* ─── Message Thread ─── */
     .thread-container {
       background: var(--surface-2);
@@ -580,10 +562,6 @@
     <a href="/browse" class="back-link">&larr; Back to Task Board</a>
     <div id="content">
       <div class="loading">Loading task...</div>
-    </div>
-    <div class="auto-refresh" id="auto-refresh">
-      <span class="dot"></span>
-      Auto-refreshing every 3 seconds
     </div>
   </div>
 
@@ -1138,10 +1116,6 @@
           });
         }
 
-        // Hide auto-refresh once completed/cancelled/closed
-        if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'closed') {
-          document.getElementById('auto-refresh').style.display = 'none';
-        }
       } catch(e) {
         document.getElementById('content').innerHTML = '<div class="error-msg">Could not connect to API</div>';
       }
