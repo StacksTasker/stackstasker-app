@@ -47,11 +47,75 @@
     return bytes.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
+  function c32Encode(bytes) {
+    // Convert byte array to c32 string (inverse of c32Decode)
+    var leading = 0;
+    for (var i = 0; i < bytes.length; i++) {
+      if (bytes[i] === 0) { leading++; } else { break; }
+    }
+    var n = BigInt(0);
+    for (var i = 0; i < bytes.length; i++) {
+      n = n * 256n + BigInt(bytes[i]);
+    }
+    var chars = [];
+    while (n > 0n) {
+      chars.unshift(C32[Number(n % 32n)]);
+      n = n / 32n;
+    }
+    for (var i = 0; i < leading; i++) { chars.unshift('0'); }
+    return chars.join('');
+  }
+
+  function sha256(data) {
+    // Synchronous SHA-256 using SubtleCrypto not available; use a simple double-hash via hex
+    // For c32check we need sha256(sha256(bytes)) — we'll compute the checksum at encode time
+    // Use a lightweight approach: since we control the inputs, compute via crypto.subtle
+    return crypto.subtle.digest('SHA-256', new Uint8Array(data));
+  }
+
+  /** Convert a Stacks address to a different network (testnet ↔ mainnet) */
+  async function convertAddressNetwork(address, targetNetwork) {
+    var d = decodeStacksAddress(address);
+    // version 22 = mainnet single-sig, 26 = testnet single-sig
+    // version 20 = mainnet multi-sig, 21 = testnet multi-sig
+    var currentIsMainnet = (d.version === 22 || d.version === 20);
+    var wantMainnet = (targetNetwork === 'mainnet');
+    if (currentIsMainnet === wantMainnet) return address; // already correct
+
+    var newVersion;
+    if (d.version === 26) newVersion = 22;       // testnet single → mainnet single
+    else if (d.version === 22) newVersion = 26;   // mainnet single → testnet single
+    else if (d.version === 21) newVersion = 20;   // testnet multi → mainnet multi
+    else if (d.version === 20) newVersion = 21;   // mainnet multi → testnet multi
+    else return address; // unknown version, return as-is
+
+    // Compute c32check: version + hash160 + checksum
+    var payload = [newVersion].concat(d.hash160);
+    var hash1 = await sha256(payload);
+    var hash2 = await sha256(new Uint8Array(hash1));
+    var checksum = Array.from(new Uint8Array(hash2)).slice(0, 4);
+    var fullData = d.hash160.concat(checksum);
+    return 'S' + C32[newVersion] + c32Encode(fullData);
+  }
+
   /** Serialize a Stacks address to a Clarity standard-principal CV hex string */
   function cvPrincipal(address) {
     var d = decodeStacksAddress(address);
     // type 0x05 (standard principal) + version byte + 20-byte hash160
     var bytes = [0x05, d.version].concat(d.hash160);
+    return '0x' + bytesToHex(bytes);
+  }
+
+  /** Serialize a principal CV with a specific network version override */
+  function cvPrincipalForNetwork(address, network) {
+    var d = decodeStacksAddress(address);
+    var version = d.version;
+    // Override version if network doesn't match
+    if (network === 'mainnet' && version === 26) version = 22;  // ST → SP
+    else if (network === 'mainnet' && version === 21) version = 20;
+    else if (network === 'testnet' && version === 22) version = 26;  // SP → ST
+    else if (network === 'testnet' && version === 20) version = 21;
+    var bytes = [0x05, version].concat(d.hash160);
     return '0x' + bytesToHex(bytes);
   }
 
@@ -174,18 +238,21 @@
    * @param {Array}  postConditions  - SIP-005 post-conditions array
    * @returns {Promise<string>}      - Broadcast transaction ID
    */
-  async function callContract(contractAddress, contractName, functionName, functionArgs, postConditions) {
+  async function callContract(contractAddress, contractName, functionName, functionArgs, postConditions, network) {
     var provider = getProvider();
     if (!provider || !provider.request) {
       throw new Error('No Stacks wallet provider found. Install Leather wallet.');
     }
 
-    var response = await provider.request('stx_callContract', {
+    var params = {
       contract: contractAddress + '.' + contractName,
       functionName: functionName,
       functionArgs: functionArgs,
       postConditions: postConditions || [],
-    });
+    };
+    if (network) { params.network = network; }
+
+    var response = await provider.request('stx_callContract', params);
 
     // Handle JSON-RPC error responses
     if (response && response.error) {
@@ -239,6 +306,7 @@
     hasWalletProvider: hasWalletProvider,
     cv: {
       principal: cvPrincipal,
+      principalForNetwork: cvPrincipalForNetwork,
       uint: cvUint,
     },
   };

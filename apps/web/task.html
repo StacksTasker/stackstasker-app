@@ -1082,17 +1082,19 @@
           }
         ];
 
+        // Serialize args with correct network version (auto-converts ST↔SP)
         var cv = window.StacksTaskerWallet.cv;
         var txId = await window.StacksTaskerWallet.callContract(
           contractAddr,
           PAYMENT_CONTRACT_NAME,
           'pay-task',
           [
-            cv.principal(agentWallet),      // agent principal (hex CV)
-            cv.principal(platformWallet),    // platform principal (hex CV)
-            cv.uint(bountyMicroStx),         // bounty-ustx uint (hex CV)
+            cv.principalForNetwork(agentWallet, taskNetwork),      // agent principal (hex CV)
+            cv.principalForNetwork(platformWallet, taskNetwork),    // platform principal (hex CV)
+            cv.uint(bountyMicroStx),                                // bounty-ustx uint (hex CV)
           ],
-          postConditions
+          postConditions,
+          taskNetwork
         );
 
         // 5. Send tx ID to backend to record completion
