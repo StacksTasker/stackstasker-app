@@ -26,7 +26,7 @@ import type {
 
 // ─── Constants ──────────────────────────────────────────
 const PLATFORM_FEE_PERCENT = 0.01; // 1%
-const PLATFORM_WALLET = 'SPRG5SJWZ4TE23RJY2Z9NJW9MVN23NMSEGVHH714';
+const PLATFORM_WALLET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
 
 const AVATAR_COLORS = ['av-purple', 'av-orange', 'av-green', 'av-blue', 'av-pink', 'av-teal'];
 
@@ -262,7 +262,7 @@ export async function rejectResult(taskId: string, posterAddress: string, reason
   return rowToTask(rows[0]);
 }
 
-export async function approveTask(taskId: string): Promise<Task | { error: string }> {
+export async function approveTask(taskId: string, txId?: string): Promise<Task | { error: string }> {
   const task = await getTask(taskId);
   if (!task) return { error: 'Task not found' };
   if (task.status !== 'submitted') return { error: `Task is ${task.status}, not submitted` };
@@ -274,17 +274,39 @@ export async function approveTask(taskId: string): Promise<Task | { error: strin
   const platformFee = Number(feeMicro) / 1_000_000;
   const agentPayout = Number(payoutMicro) / 1_000_000;
 
-  // For the MVP demo, simulate payment settlement via facilitator
-  let paymentTxId = `sim_${randomUUID().slice(0, 12)}`;
+  // Determine payment transaction ID:
+  // 1. If txId provided (from real on-chain contract call), use it
+  // 2. Otherwise fall back to simulated payment for dev/testing
+  let paymentTxId: string;
 
-  try {
-    const settleResponse = await fetch(`${facilitatorUrl}/health`);
-    if (settleResponse.ok) {
-      console.log(`[TaskEngine] Facilitator available, payment would settle on-chain`);
-      paymentTxId = `stx_${randomUUID().slice(0, 12)}`;
+  if (txId) {
+    // Real on-chain transaction from the payment contract
+    paymentTxId = txId;
+    console.log(`[TaskEngine] Real on-chain tx received: ${txId}`);
+
+    // Best-effort verification via Hiro API (non-blocking)
+    try {
+      const verifyRes = await fetch(`https://api.hiro.so/extended/v1/tx/${txId}`);
+      if (verifyRes.ok) {
+        const txData = await verifyRes.json() as { tx_status?: string };
+        console.log(`[TaskEngine] Tx ${txId} status: ${txData.tx_status ?? 'unknown'}`);
+      }
+    } catch {
+      console.log(`[TaskEngine] Could not verify tx ${txId} (will confirm later)`);
     }
-  } catch {
-    console.log(`[TaskEngine] Facilitator not available, using simulated payment`);
+  } else {
+    // Simulated payment for dev/testing
+    paymentTxId = `sim_${randomUUID().slice(0, 12)}`;
+
+    try {
+      const settleResponse = await fetch(`${facilitatorUrl}/health`);
+      if (settleResponse.ok) {
+        console.log(`[TaskEngine] Facilitator available, payment would settle on-chain`);
+        paymentTxId = `stx_${randomUUID().slice(0, 12)}`;
+      }
+    } catch {
+      console.log(`[TaskEngine] Facilitator not available, using simulated payment`);
+    }
   }
 
   const now = new Date();
@@ -315,7 +337,8 @@ export async function approveTask(taskId: string): Promise<Task | { error: strin
 
     await client.query('COMMIT');
 
-    console.log(`[TaskEngine] Task ${taskId} completed! Payment: ${paymentTxId} (${task.bounty} STX, fee: ${platformFee.toFixed(6)} STX)`);
+    const txType = txId ? 'ON-CHAIN' : 'SIMULATED';
+    console.log(`[TaskEngine] Task ${taskId} completed! [${txType}] Payment: ${paymentTxId} (${task.bounty} STX, fee: ${platformFee.toFixed(6)} STX)`);
     return rowToTask(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');

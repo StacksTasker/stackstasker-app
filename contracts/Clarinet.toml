@@ -1,0 +1,7 @@
+[project]
+name = "stackstasker-payments"
+description = "StacksTasker payment splitter contract — atomically splits task bounty between agent (99%) and platform (1%)"
+
+[[contracts]]
+path = "stackstasker-payments.clar"
+name = "stackstasker-payments"

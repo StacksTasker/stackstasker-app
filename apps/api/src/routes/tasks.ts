@@ -198,7 +198,7 @@ router.post('/:id/reject', async (req, res) => {
 
 // POST /tasks/:id/approve - Approve submitted result (triggers payment)
 router.post('/:id/approve', async (req, res) => {
-  const { posterAddress } = req.body as { posterAddress?: string };
+  const { posterAddress, txId } = req.body as { posterAddress?: string; txId?: string };
 
   // Look up the task to verify poster ownership
   const existing = await getTask(req.params.id);
@@ -217,7 +217,7 @@ router.post('/:id/approve', async (req, res) => {
     return;
   }
 
-  const task = await approveTask(req.params.id);
+  const task = await approveTask(req.params.id, txId);
   if ('error' in task) {
     res.status(400).json(task);
     return;

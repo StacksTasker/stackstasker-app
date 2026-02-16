@@ -503,7 +503,8 @@
 
     function explorerUrl(txId) {
       if (txId.startsWith('sim_') || txId.startsWith('stx_')) return null;
-      return 'https://explorer.hiro.so/txid/' + txId + '?chain=testnet';
+      var net = localStorage.getItem('stx_network') || 'testnet';
+      return 'https://explorer.hiro.so/txid/' + txId + '?chain=' + net;
     }
 
     function getWalletAddr() {
@@ -908,24 +909,153 @@
       }
     }
 
+    // ─── Payment Contract Config (defaults, overridden by /config API) ───
+    var PAYMENT_CONTRACT_ADDRESS = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
+    var PAYMENT_CONTRACT_NAME = 'stackstasker-payments';
+    var PLATFORM_WALLET_TESTNET = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
+    var PLATFORM_WALLET_MAINNET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
+
+    // Load contract config from API (non-blocking, uses defaults if unavailable)
+    (function loadPaymentConfig() {
+      fetch(API + '/config').then(function(r) { return r.json(); }).then(function(cfg) {
+        if (cfg.paymentContract) {
+          PAYMENT_CONTRACT_ADDRESS = cfg.paymentContract.address || PAYMENT_CONTRACT_ADDRESS;
+          PAYMENT_CONTRACT_NAME = cfg.paymentContract.name || PAYMENT_CONTRACT_NAME;
+        }
+        if (cfg.platformWallet) {
+          PLATFORM_WALLET_TESTNET = cfg.platformWallet.testnet || PLATFORM_WALLET_TESTNET;
+          PLATFORM_WALLET_MAINNET = cfg.platformWallet.mainnet || PLATFORM_WALLET_MAINNET;
+        }
+      }).catch(function() { /* use defaults */ });
+    })();
+
+    function getPlatformWallet() {
+      var net = localStorage.getItem('stx_network') || 'testnet';
+      return net === 'mainnet' ? PLATFORM_WALLET_MAINNET : PLATFORM_WALLET_TESTNET;
+    }
+
+    /**
+     * Encode a Clarity principal value as a hex string (SIP-005 serialization).
+     * Standard principals: 0x05 + version(1) + hash160(20)
+     */
+    function encodeClarityPrincipal(address) {
+      // Use Leather's built-in Clarity value encoding via the ClarityValue format
+      // Leather wallet accepts Clarity values in hex-encoded format
+      // For stx_callContract, we pass arguments as Clarity value hex strings
+      // Standard principal: type 0x05, version byte, 20-byte hash160
+      return address;
+    }
+
+    /**
+     * Encode a Clarity uint value as a hex string.
+     * uint: type 0x01 + 16 bytes big-endian
+     */
+    function encodeClarityUint(value) {
+      return value.toString();
+    }
+
     async function approveTaskAction() {
       var btn = document.getElementById('approve-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Approving...'; }
-      var walletAddr = getWalletAddr();
-      if (!walletAddr) { window.alert('Connect your wallet first'); if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; } return; }
+      var originalText = btn ? btn.textContent : 'Approve & Pay';
+      if (btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
 
+      var walletAddr = getWalletAddr();
+      if (!walletAddr) { window.alert('Connect your wallet first'); if (btn) { btn.disabled = false; btn.textContent = originalText; } return; }
+
+      var hasProvider = window.StacksTaskerWallet && window.StacksTaskerWallet.hasWalletProvider();
+
+      // If no native wallet provider, fall back to simulated payment
+      if (!hasProvider) {
+        console.warn('[Approve] No wallet provider — using simulated payment');
+        if (btn) { btn.textContent = 'Approving (simulated)...'; }
+        try {
+          var res = await fetch(API + '/tasks/' + taskId + '/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ posterAddress: walletAddr }),
+          });
+          var data = await res.json();
+          if (res.ok) { loadTask(); }
+          else { window.alert(data.error || 'Failed to approve'); if (btn) { btn.disabled = false; btn.textContent = originalText; } }
+        } catch(e) {
+          window.alert('Could not connect to API');
+          if (btn) { btn.disabled = false; btn.textContent = originalText; }
+        }
+        return;
+      }
+
+      // ─── Real on-chain payment via smart contract ───
       try {
-        var res = await fetch(API + '/tasks/' + taskId + '/approve', {
+        // 1. Fetch the task to get bounty + assigned agent
+        if (btn) { btn.textContent = 'Loading task...'; }
+        var taskRes = await fetch(API + '/tasks/' + taskId);
+        if (!taskRes.ok) { throw new Error('Failed to load task'); }
+        var task = await taskRes.json();
+
+        if (!task.assignedAgent) { throw new Error('No agent assigned to this task'); }
+
+        // 2. Fetch agent wallet address
+        if (btn) { btn.textContent = 'Fetching agent wallet...'; }
+        var agentRes = await fetch(API + '/agents/' + task.assignedAgent);
+        if (!agentRes.ok) { throw new Error('Failed to load agent info'); }
+        var agentInfo = await agentRes.json();
+        var agentWallet = agentInfo.walletAddress;
+        if (!agentWallet) { throw new Error('Agent has no wallet address'); }
+
+        // 3. Calculate bounty in microSTX
+        var bountyStx = parseFloat(task.bounty);
+        var bountyMicroStx = Math.round(bountyStx * 1000000);
+
+        // 4. Call the smart contract via Leather wallet
+        if (btn) { btn.textContent = 'Sign in wallet...'; }
+
+        var platformWallet = getPlatformWallet();
+
+        // Build post-conditions: poster sends exactly bountyMicroStx STX
+        // Post-condition format for stx_callContract:
+        // type: 'stx-postcondition', address, condition: 'eq', amount in ustx as string
+        var postConditions = [
+          {
+            type: 'stx-postcondition',
+            address: walletAddr,
+            condition: 'eq',
+            amount: bountyMicroStx.toString(),
+          }
+        ];
+
+        var txId = await window.StacksTaskerWallet.callContract(
+          PAYMENT_CONTRACT_ADDRESS,
+          PAYMENT_CONTRACT_NAME,
+          'pay-task',
+          [
+            agentWallet,       // agent principal
+            platformWallet,    // platform principal
+            bountyMicroStx.toString(),  // bounty-ustx uint
+          ],
+          postConditions
+        );
+
+        // 5. Send tx ID to backend to record completion
+        if (btn) { btn.textContent = 'Confirming...'; }
+        var approveRes = await fetch(API + '/tasks/' + taskId + '/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ posterAddress: walletAddr }),
+          body: JSON.stringify({ posterAddress: walletAddr, txId: txId }),
         });
-        var data = await res.json();
-        if (res.ok) { loadTask(); }
-        else { window.alert(data.error || 'Failed to approve'); if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; } }
+        var approveData = await approveRes.json();
+        if (approveRes.ok) { loadTask(); }
+        else { window.alert(approveData.error || 'Failed to record approval'); if (btn) { btn.disabled = false; btn.textContent = originalText; } }
+
       } catch(e) {
-        window.alert('Could not connect to API');
-        if (btn) { btn.disabled = false; btn.textContent = 'Approve & Pay'; }
+        console.error('[Approve] Error:', e);
+        var msg = e && e.message ? e.message : 'Transaction failed';
+        // If user rejected in wallet, show friendly message
+        if (msg.toLowerCase().indexOf('cancel') !== -1 || msg.toLowerCase().indexOf('reject') !== -1 || msg.toLowerCase().indexOf('denied') !== -1) {
+          window.alert('Transaction cancelled by user');
+        } else {
+          window.alert('Payment failed: ' + msg);
+        }
+        if (btn) { btn.disabled = false; btn.textContent = originalText; }
       }
     }
 

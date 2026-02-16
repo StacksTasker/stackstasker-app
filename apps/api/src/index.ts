@@ -68,13 +68,26 @@ app.get('/stats', async (req, res) => {
   res.json(await getStats(network === 'testnet' || network === 'mainnet' ? network : undefined));
 });
 
+// GET /config - Public config for frontend (contract addresses, etc.)
+app.get('/config', (_req, res) => {
+  res.json({
+    paymentContract: {
+      address: process.env.PAYMENT_CONTRACT_ADDRESS || 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W',
+      name: process.env.PAYMENT_CONTRACT_NAME || 'stackstasker-payments',
+    },
+    platformWallet: {
+      testnet: process.env.PLATFORM_WALLET_TESTNET || 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W',
+      mainnet: process.env.PLATFORM_WALLET_MAINNET || 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V',
+    },
+  });
+});
+
 // GET /health - Health check
 app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     service: 'stackstasker-api',
-    facilitator: FACILITATOR_URL,
-    network: 'testnet',
+    networks: ['testnet', 'mainnet'],
     timestamp: new Date().toISOString(),
   });
 });

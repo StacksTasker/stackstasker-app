@@ -106,6 +106,47 @@
     }
   }
 
+  // ─── Contract Call ───
+
+  /**
+   * Call a Clarity smart contract via the Leather wallet provider.
+   * Returns the broadcast transaction ID.
+   *
+   * @param {string} contractAddress - Deployer address (e.g. ST...)
+   * @param {string} contractName    - Contract name (e.g. stackstasker-payments)
+   * @param {string} functionName    - Public function name (e.g. pay-task)
+   * @param {Array}  functionArgs    - Clarity-encoded arguments (hex CV values)
+   * @param {Array}  postConditions  - SIP-005 post-conditions array
+   * @returns {Promise<string>}      - Broadcast transaction ID
+   */
+  async function callContract(contractAddress, contractName, functionName, functionArgs, postConditions) {
+    var provider = window.StacksProvider || window.LeatherProvider || window.HiroWalletProvider;
+    if (!provider || !provider.request) {
+      throw new Error('No Stacks wallet provider found. Install Leather wallet.');
+    }
+
+    var response = await provider.request('stx_callContract', {
+      contract: contractAddress + '.' + contractName,
+      functionName: functionName,
+      functionArgs: functionArgs,
+      postConditions: postConditions || [],
+    });
+
+    // Leather returns result.txid on successful broadcast
+    var txId = response && response.result && (response.result.txid || response.result.txId);
+    if (!txId) {
+      throw new Error('No transaction ID returned from wallet');
+    }
+    return txId;
+  }
+
+  /**
+   * Check if a native wallet provider (Leather/Hiro) is available
+   */
+  function hasWalletProvider() {
+    return !!(window.StacksProvider || window.LeatherProvider || window.HiroWalletProvider);
+  }
+
   // ─── Nav UI ───
 
   function updateNavWallet() {
@@ -134,6 +175,8 @@
     getAddress: getConnectedAddress,
     truncate: truncateAddress,
     updateNav: updateNavWallet,
+    callContract: callContract,
+    hasWalletProvider: hasWalletProvider,
   };
 
   // Auto-initialize on DOM ready

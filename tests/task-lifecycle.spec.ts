@@ -239,7 +239,7 @@ test.describe.serial('Task Lifecycle — Full E2E', () => {
 
   // ─── Step 6: Poster approves → task completed ─────────────
 
-  test('Step 6 — Poster approves the result', async ({ request }) => {
+  test('Step 6 — Poster approves the result (simulated payment)', async ({ request }) => {
     const res = await request.post(`${API}/tasks/${taskId}/approve`, {
       data: { posterAddress: POSTER_WALLET },
     });
@@ -247,6 +247,8 @@ test.describe.serial('Task Lifecycle — Full E2E', () => {
     const body = await res.json();
     expect(body.status).toBe('completed');
     expect(body.completedAt).toBeTruthy();
+    // Simulated flow (no txId) should produce sim_ or stx_ prefix
+    expect(body.paymentTxId).toMatch(/^(sim_|stx_)/);
   });
 
   // ─── Step 7: Verify payment was made ──────────────────────
@@ -256,7 +258,8 @@ test.describe.serial('Task Lifecycle — Full E2E', () => {
     const task = await res.json();
 
     expect(task.paymentTxId).toBeTruthy();
-    expect(task.paymentTxId).toMatch(/^(sim_|stx_)/);
+    // Accept simulated (sim_/stx_) or real on-chain tx IDs (64-char hex)
+    expect(task.paymentTxId).toMatch(/^(sim_|stx_|[0-9a-f]{64})/);
     expect(task.platformFee).toBeTruthy();
     expect(parseFloat(task.platformFee)).toBeGreaterThan(0);
 
@@ -330,5 +333,108 @@ test.describe.serial('Task Lifecycle — Full E2E', () => {
     const stats = await statsRes.json();
     expect(stats.completedTasks).toBeGreaterThanOrEqual(1);
     expect(parseFloat(stats.totalPaid)).toBeGreaterThan(0);
+  });
+});
+
+// ─── Payment Contract Config ──────────────────────────────────
+test.describe('Payment Contract Config', () => {
+
+  test('GET /config returns payment contract and platform wallet', async ({ request }) => {
+    const res = await request.get(`${API}/config`);
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+
+    // Payment contract config
+    expect(body.paymentContract).toBeTruthy();
+    expect(body.paymentContract.address).toBeTruthy();
+    expect(body.paymentContract.address).toMatch(/^S[TPV]/);
+    expect(body.paymentContract.name).toBe('stackstasker-payments');
+
+    // Platform wallet addresses
+    expect(body.platformWallet).toBeTruthy();
+    expect(body.platformWallet.testnet).toMatch(/^ST/);
+    expect(body.platformWallet.mainnet).toMatch(/^SP/);
+  });
+});
+
+// ─── On-Chain Approval Flow (txId pass-through) ──────────────
+test.describe.serial('On-Chain Approval — txId pass-through', () => {
+  let onchainAgentId: string;
+  let onchainTaskId: string;
+
+  test('Setup — Register agent and create task', async ({ request }) => {
+    // Register agent
+    const agentRes = await request.post(`${API}/agents/register`, {
+      data: {
+        name: 'OnChainTestBot',
+        walletAddress: 'ST3AM1A56AK2C1XAFJ4115ZSV26EB49BVQ10MGCS0',
+        bio: 'Agent for on-chain payment test',
+        capabilities: ['coding'],
+      },
+    });
+    expect(agentRes.ok()).toBeTruthy();
+    onchainAgentId = (await agentRes.json()).id;
+
+    // Create task
+    const taskRes = await request.post(`${API}/tasks`, {
+      data: {
+        title: 'On-chain payment test task',
+        description: 'Testing that real txId flows through the approve endpoint correctly.',
+        category: 'coding',
+        bounty: '1.000',
+        posterAddress: POSTER_WALLET,
+        network: 'testnet',
+      },
+    });
+    expect(taskRes.status()).toBe(201);
+    onchainTaskId = (await taskRes.json()).id;
+  });
+
+  test('Setup — Agent accepts, starts, and submits', async ({ request }) => {
+    await request.post(`${API}/tasks/${onchainTaskId}/accept`, {
+      data: { agentId: onchainAgentId },
+    });
+    await request.post(`${API}/tasks/${onchainTaskId}/start`, {
+      data: { agentId: onchainAgentId },
+    });
+    const submitRes = await request.post(`${API}/tasks/${onchainTaskId}/submit`, {
+      data: { agentId: onchainAgentId, result: 'Test deliverable for on-chain payment.' },
+    });
+    expect(submitRes.ok()).toBeTruthy();
+    const body = await submitRes.json();
+    expect(body.status).toBe('submitted');
+  });
+
+  test('Approve with real txId — records on-chain tx', async ({ request }) => {
+    const fakeTxId = 'abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234';
+
+    const res = await request.post(`${API}/tasks/${onchainTaskId}/approve`, {
+      data: { posterAddress: POSTER_WALLET, txId: fakeTxId },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.status).toBe('completed');
+    expect(body.paymentTxId).toBe(fakeTxId);
+    expect(body.completedAt).toBeTruthy();
+
+    // Verify fee calculation: 1% of 1.000 = 0.010000
+    expect(parseFloat(body.platformFee)).toBeCloseTo(0.01, 4);
+  });
+
+  test('Verify on-chain task state', async ({ request }) => {
+    const res = await request.get(`${API}/tasks/${onchainTaskId}`);
+    const task = await res.json();
+
+    expect(task.status).toBe('completed');
+    // Real tx ID should be stored as-is (not sim_ or stx_)
+    expect(task.paymentTxId).not.toMatch(/^(sim_|stx_)/);
+    expect(task.paymentTxId).toMatch(/^[0-9a-f]{64}$/);
+
+    // Verify agent earnings updated
+    const agentRes = await request.get(`${API}/agents/${onchainAgentId}`);
+    const agent = await agentRes.json();
+    expect(agent.tasksCompleted).toBe(1);
+    // Agent payout = 1.000 - 0.01 = 0.99
+    expect(parseFloat(agent.totalEarned)).toBeCloseTo(0.99, 2);
   });
 });
