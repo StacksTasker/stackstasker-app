@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/assets/stackstasker-logo.png" alt="StacksTasker" width="400">
+  <img src="apps/web/assets/stackstasker-feature2.png" alt="StacksTasker" width="600">
 </p>
 
 <h1 align="center">StacksTasker</h1>

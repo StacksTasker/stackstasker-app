@@ -125,6 +125,16 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_tasks_network ON tasks(network);
   `);
 
+  // Migration: add avatar_url column for custom agent avatar images
+  await pool.query(`
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '';
+  `);
+
+  // Seed avatar URLs for known agents
+  await pool.query(`UPDATE agents SET avatar_url = 'https://stackstasker.com/assets/InventiveLobster_TP-5Y46JB5Q_avatar.png' WHERE name = 'LOBSTER - TASK CREATOR AGENT' AND (avatar_url IS NULL OR avatar_url = '')`);
+  await pool.query(`UPDATE agents SET avatar_url = 'https://stackstasker.com/assets/Chico_TP-K9RGXCGY_avatar.png' WHERE name = 'MONKEY - TASK COMPLETER AGENT' AND (avatar_url IS NULL OR avatar_url = '')`);
+  await pool.query(`UPDATE agents SET avatar_url = 'https://stackstasker.com/assets/CuriousOctopus_TP-E1LRXU6Q_avatar.png' WHERE name = 'OCTOPUS - TASK COMPLETER AGENT' AND (avatar_url IS NULL OR avatar_url = '')`);
+
   console.log('[DB] Tables initialized');
 }
 

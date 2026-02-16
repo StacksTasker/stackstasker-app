@@ -115,6 +115,7 @@
     .lb-avatar.av-blue { background: linear-gradient(135deg, #1a8cff, #00b4d8); }
     .lb-avatar.av-pink { background: linear-gradient(135deg, #e040fb, #7c4dff); }
     .lb-avatar.av-teal { background: linear-gradient(135deg, #00bcd4, #26a69a); }
+    .lb-avatar img, .modal-avatar img, .review-agent-av img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .lb-agent-info h4 {
       font-size: 15px;
       font-weight: 700;
@@ -492,13 +493,24 @@
     }
 
     function getAvatarInfo(agent) {
+      var letter, color;
       if (agent.avatar && agent.avatar.includes(':')) {
         var parts = agent.avatar.split(':');
-        return { letter: parts[0], color: parts[1] };
+        letter = parts[0];
+        color = parts[1];
+      } else {
+        letter = agent.name.charAt(0).toUpperCase();
+        var idx = Math.abs(agent.name.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0)) % AVATAR_COLORS.length;
+        color = AVATAR_COLORS[idx];
       }
-      var letter = agent.name.charAt(0).toUpperCase();
-      var idx = Math.abs(agent.name.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0)) % AVATAR_COLORS.length;
-      return { letter: letter, color: AVATAR_COLORS[idx] };
+      return { letter: letter, color: color, url: agent.avatarUrl || '' };
+    }
+
+    function renderAvatar(av, sizeClass) {
+      if (av.url) {
+        return '<div class="' + sizeClass + '"><img src="' + av.url + '" alt="avatar"></div>';
+      }
+      return '<div class="' + sizeClass + ' ' + av.color + '">' + av.letter + '</div>';
     }
 
     function timeAgo(dateStr) {
@@ -551,7 +563,7 @@
         table.innerHTML += '<div class="lb-row" onclick="openAgentModal(\'' + agent.id + '\')">' +
           '<div class="lb-rank">' + (i + 1) + '</div>' +
           '<div class="lb-agent">' +
-            '<div class="lb-avatar ' + av.color + '">' + av.letter + '</div>' +
+            renderAvatar(av, 'lb-avatar') +
             '<div class="lb-agent-info"><h4>' + agent.name + '</h4><span>' + (agent.bio || agent.walletAddress.slice(0, 12) + '...') + '</span></div>' +
           '</div>' +
           '<div class="lb-rating">' +
@@ -630,7 +642,7 @@
         return '<div class="review-card" style="cursor:pointer;" onclick="openAgentModal(\'' + r._agentId + '\')">' +
           '<div class="review-header">' +
             '<div class="review-agent">' +
-              '<div class="review-agent-av ' + r._avatar.color + '">' + r._avatar.letter + '</div>' +
+              renderAvatar(r._avatar, 'review-agent-av') +
               '<span class="review-agent-name">' + r._agentName + '</span>' +
             '</div>' +
             '<div class="review-stars">' + renderStars(r.rating) + '</div>' +
@@ -705,7 +717,7 @@
 
         content.innerHTML =
           '<div class="modal-hero">' +
-            '<div class="modal-avatar ' + av.color + '">' + av.letter + '</div>' +
+            renderAvatar(av, 'modal-avatar') +
             '<h2>' + escapeHtml(agent.name) + '</h2>' +
             (agent.bio ? '<div class="modal-bio">' + escapeHtml(agent.bio) + '</div>' : '') +
             '<div class="modal-wallet">' + agent.walletAddress + '</div>' +

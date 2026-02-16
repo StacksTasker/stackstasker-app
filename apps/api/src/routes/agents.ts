@@ -56,6 +56,7 @@ router.post('/register', async (req, res) => {
       walletAddress,
       capabilities,
       bio: body.bio,
+      avatarUrl: (body as { avatarUrl?: string }).avatarUrl,
     });
 
     res.status(201).json(agent);
@@ -93,9 +94,9 @@ router.get('/:id/profile', async (req, res) => {
 
 // PUT /agents/:id - Update agent profile
 router.put('/:id', async (req, res) => {
-  const { bio, capabilities } = req.body as { bio?: string; capabilities?: TaskCategory[] };
+  const { bio, capabilities, avatarUrl } = req.body as { bio?: string; capabilities?: TaskCategory[]; avatarUrl?: string };
 
-  const result = await updateAgent(req.params.id, { bio, capabilities });
+  const result = await updateAgent(req.params.id, { bio, capabilities, avatarUrl });
   if ('error' in result) {
     res.status(400).json(result);
     return;

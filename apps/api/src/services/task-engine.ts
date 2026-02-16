@@ -73,6 +73,7 @@ function rowToAgent(row: Record<string, unknown>): Agent {
     walletAddress: row.wallet_address as string,
     bio: (row.bio as string) || '',
     avatar: (row.avatar as string) || '',
+    avatarUrl: (row.avatar_url as string) || '',
     capabilities: (row.capabilities as TaskCategory[]) || [],
     tasksCompleted: row.tasks_completed as number,
     totalEarned: row.total_earned as string,
@@ -504,9 +505,9 @@ export async function registerAgent(req: RegisterAgentRequest): Promise<Agent> {
   const avatar = `${letter}:${AVATAR_COLORS[colorIdx]}`;
 
   const { rows } = await query(
-    `INSERT INTO agents (id, name, wallet_address, bio, avatar, capabilities, tasks_completed, total_earned, avg_rating, total_reviews, registered_at, last_active_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 0, '0.000000', 0, 0, $7, $7) RETURNING *`,
-    [id, req.name, req.walletAddress, req.bio || '', avatar, req.capabilities, now]
+    `INSERT INTO agents (id, name, wallet_address, bio, avatar, avatar_url, capabilities, tasks_completed, total_earned, avg_rating, total_reviews, registered_at, last_active_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 0, '0.000000', 0, 0, $8, $8) RETURNING *`,
+    [id, req.name, req.walletAddress, req.bio || '', avatar, req.avatarUrl || '', req.capabilities, now]
   );
 
   console.log(`[TaskEngine] Registered agent ${id}: ${req.name}`);
@@ -518,10 +519,35 @@ export async function getAgent(id: string): Promise<Agent | undefined> {
   return rows.length ? rowToAgent(rows[0]) : undefined;
 }
 
+/** Deduplicate agents by wallet address, aggregating stats across duplicates */
+function deduplicateAgents(agents: Agent[]): Agent[] {
+  const byWallet = new Map<string, Agent>();
+  for (const agent of agents) {
+    const existing = byWallet.get(agent.walletAddress);
+    if (!existing) {
+      byWallet.set(agent.walletAddress, { ...agent });
+    } else {
+      // Aggregate stats
+      existing.tasksCompleted += agent.tasksCompleted;
+      existing.totalEarned = (parseFloat(existing.totalEarned) + parseFloat(agent.totalEarned)).toFixed(6);
+      const totalReviews = existing.totalReviews + agent.totalReviews;
+      if (totalReviews > 0) {
+        existing.avgRating = (existing.avgRating * existing.totalReviews + agent.avgRating * agent.totalReviews) / totalReviews;
+      }
+      existing.totalReviews = totalReviews;
+      // Keep the newer lastActiveAt
+      if (agent.lastActiveAt > existing.lastActiveAt) existing.lastActiveAt = agent.lastActiveAt;
+      // Prefer non-empty avatarUrl
+      if (!existing.avatarUrl && agent.avatarUrl) existing.avatarUrl = agent.avatarUrl;
+    }
+  }
+  return Array.from(byWallet.values());
+}
+
 export async function listAgents(network?: NetworkType): Promise<Agent[]> {
   if (!network) {
     const { rows } = await query('SELECT * FROM agents ORDER BY tasks_completed DESC');
-    return rows.map(rowToAgent);
+    return deduplicateAgents(rows.map(rowToAgent));
   }
 
   // Network-filtered: only return agents with activity (bid, completed, or posted) on this network
@@ -561,7 +587,7 @@ export async function listAgents(network?: NetworkType): Promise<Agent[]> {
     ORDER BY COALESCE(ns.net_tasks, 0) DESC
   `, [network]);
 
-  return rows.map(function(row) {
+  const agents = rows.map(function(row) {
     const agent = rowToAgent(row);
     const r = row as Record<string, unknown>;
     agent.tasksCompleted = r.net_tasks as number;
@@ -570,9 +596,10 @@ export async function listAgents(network?: NetworkType): Promise<Agent[]> {
     agent.totalReviews = r.net_total_reviews as number;
     return agent;
   });
+  return deduplicateAgents(agents);
 }
 
-export async function updateAgent(id: string, updates: { bio?: string; capabilities?: TaskCategory[] }): Promise<Agent | { error: string }> {
+export async function updateAgent(id: string, updates: { bio?: string; capabilities?: TaskCategory[]; avatarUrl?: string }): Promise<Agent | { error: string }> {
   const agent = await getAgent(id);
   if (!agent) return { error: 'Agent not found' };
 
@@ -588,6 +615,10 @@ export async function updateAgent(id: string, updates: { bio?: string; capabilit
   if (updates.capabilities) {
     sets.push(`capabilities = $${idx++}`);
     params.push(updates.capabilities);
+  }
+  if (updates.avatarUrl !== undefined) {
+    sets.push(`avatar_url = $${idx++}`);
+    params.push(updates.avatarUrl);
   }
 
   params.push(id);

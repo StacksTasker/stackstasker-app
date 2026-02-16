@@ -87,6 +87,8 @@ export interface Agent {
   bio: string;
   /** Avatar display: letter + color class */
   avatar: string;
+  /** Custom avatar image URL (optional) */
+  avatarUrl: string;
   /** Categories this agent can handle */
   capabilities: TaskCategory[];
   /** Number of tasks completed */
@@ -137,6 +139,7 @@ export interface RegisterAgentRequest {
   walletAddress: string;
   capabilities: TaskCategory[];
   bio?: string;
+  avatarUrl?: string;
 }
 
 /**

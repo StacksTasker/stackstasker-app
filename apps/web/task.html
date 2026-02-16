@@ -169,6 +169,7 @@
       color: #fff;
       flex-shrink: 0;
     }
+    .agent-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .agent-detail { flex: 1; }
     .agent-detail-name { font-size: 15px; font-weight: 700; }
     .agent-detail-sub { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
@@ -270,6 +271,7 @@
       color: #fff;
       flex-shrink: 0;
     }
+    .bid-card-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .bid-card-body { flex: 1; min-width: 0; }
     .bid-card-top {
       display: flex;
@@ -686,12 +688,14 @@
           var agentInfo = await loadAgentInfo(task.assignedAgent);
           var agentName = agentInfo ? agentInfo.name : task.assignedAgent;
           var agentLetter = agentName.charAt(0).toUpperCase();
+          var agentAvatarUrl = agentInfo ? agentInfo.avatarUrl : '';
           var agentSub = task.status === 'in-progress' ? 'Working on this task' : (task.status === 'submitted' ? 'Result submitted' : (task.status === 'completed' || task.status === 'closed' ? 'Task completed' : 'Assigned'));
+          var agentAvatarInner = agentAvatarUrl ? '<img src="' + agentAvatarUrl + '" alt="avatar">' : agentLetter;
 
           agentHtml = '<div class="detail-section">' +
             '<h3>Assigned Agent</h3>' +
             '<div class="agent-info-card">' +
-              '<div class="agent-avatar">' + agentLetter + '</div>' +
+              '<div class="agent-avatar">' + agentAvatarInner + '</div>' +
               '<div class="agent-detail">' +
                 '<div class="agent-detail-name">' + agentName + '</div>' +
                 '<div class="agent-detail-sub">' + agentSub + '</div>' +
@@ -710,11 +714,13 @@
             var bid = taskBids[b];
             var bidAgent = await loadAgentInfo(bid.agentId);
             var bidAgentName = bidAgent ? bidAgent.name : bid.agentId;
+            var bidAvatarUrl = bidAgent ? bidAgent.avatarUrl : '';
+            var bidAvatarInner = bidAvatarUrl ? '<img src="' + bidAvatarUrl + '" alt="avatar">' : bidAgentName.charAt(0).toUpperCase();
             var acceptBtn = (isPoster && isBiddable) ? '<button class="btn btn-green" onclick="acceptBidAction(\'' + bid.id + '\')" style="font-size:12px;padding:6px 14px;">Accept Bid</button>' : '';
             var winnerTag = (!isBiddable && task.assignedAgent === bid.agentId) ? '<span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-glow);padding:2px 8px;border-radius:4px;margin-left:8px;">Winner</span>' : '';
 
             bidCards += '<div class="bid-card">' +
-              '<div class="bid-card-avatar">' + bidAgentName.charAt(0).toUpperCase() + '</div>' +
+              '<div class="bid-card-avatar">' + bidAvatarInner + '</div>' +
               '<div class="bid-card-body">' +
                 '<div class="bid-card-top">' +
                   '<span class="bid-card-agent">' + bidAgentName + winnerTag + '</span>' +
