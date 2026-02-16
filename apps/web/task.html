@@ -975,29 +975,19 @@
       }
     }
 
-    // ─── Payment Contract Config (defaults, overridden by /config API) ───
-    var PAYMENT_CONTRACT_ADDRESS = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
+    // ─── Payment Contract Config ───
     var PAYMENT_CONTRACT_NAME = 'stackstasker-payments';
+    var CONTRACT_ADDR_TESTNET = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
+    var CONTRACT_ADDR_MAINNET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
     var PLATFORM_WALLET_TESTNET = 'STV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8V496T8W';
     var PLATFORM_WALLET_MAINNET = 'SPV4JB5CZWFD8BN9XMDV0F4KTS44BKRZ8TEM307V';
 
-    // Load contract config from API (non-blocking, uses defaults if unavailable)
-    (function loadPaymentConfig() {
-      fetch(API + '/config').then(function(r) { return r.json(); }).then(function(cfg) {
-        if (cfg.paymentContract) {
-          PAYMENT_CONTRACT_ADDRESS = cfg.paymentContract.address || PAYMENT_CONTRACT_ADDRESS;
-          PAYMENT_CONTRACT_NAME = cfg.paymentContract.name || PAYMENT_CONTRACT_NAME;
-        }
-        if (cfg.platformWallet) {
-          PLATFORM_WALLET_TESTNET = cfg.platformWallet.testnet || PLATFORM_WALLET_TESTNET;
-          PLATFORM_WALLET_MAINNET = cfg.platformWallet.mainnet || PLATFORM_WALLET_MAINNET;
-        }
-      }).catch(function() { /* use defaults */ });
-    })();
+    function getContractAddress(network) {
+      return network === 'mainnet' ? CONTRACT_ADDR_MAINNET : CONTRACT_ADDR_TESTNET;
+    }
 
-    function getPlatformWallet() {
-      var net = localStorage.getItem('stx_network') || 'testnet';
-      return net === 'mainnet' ? PLATFORM_WALLET_MAINNET : PLATFORM_WALLET_TESTNET;
+    function getPlatformWallet(network) {
+      return network === 'mainnet' ? PLATFORM_WALLET_MAINNET : PLATFORM_WALLET_TESTNET;
     }
 
     /**
@@ -1075,11 +1065,14 @@
         // 4. Call the smart contract via Leather wallet
         if (btn) { btn.textContent = 'Sign in wallet...'; }
 
-        var platformWallet = getPlatformWallet();
+        var taskNetwork = task.network || 'testnet';
+        var contractAddr = getContractAddress(taskNetwork);
+        var platformWallet = getPlatformWallet(taskNetwork);
+
+        console.log('[Approve] network=' + taskNetwork + ' contract=' + contractAddr + '.' + PAYMENT_CONTRACT_NAME);
+        console.log('[Approve] agent=' + agentWallet + ' platform=' + platformWallet + ' bounty=' + bountyMicroStx + ' ustx');
 
         // Build post-conditions: poster sends exactly bountyMicroStx STX
-        // Post-condition format for stx_callContract:
-        // type: 'stx-postcondition', address, condition: 'eq', amount in ustx as string
         var postConditions = [
           {
             type: 'stx-postcondition',
@@ -1091,7 +1084,7 @@
 
         var cv = window.StacksTaskerWallet.cv;
         var txId = await window.StacksTaskerWallet.callContract(
-          PAYMENT_CONTRACT_ADDRESS,
+          contractAddr,
           PAYMENT_CONTRACT_NAME,
           'pay-task',
           [
@@ -1115,9 +1108,14 @@
 
       } catch(e) {
         console.error('[Approve] Error:', e);
-        var msg = e && e.message ? e.message : 'Transaction failed';
+        // Extract message from Error, JSON-RPC response, or plain object
+        var msg;
+        if (e && e.error && e.error.message) { msg = e.error.message; }
+        else if (e && e.message) { msg = e.message; }
+        else if (typeof e === 'string') { msg = e; }
+        else { msg = JSON.stringify(e); }
         // If user rejected in wallet, show friendly message
-        if (msg.toLowerCase().indexOf('cancel') !== -1 || msg.toLowerCase().indexOf('reject') !== -1 || msg.toLowerCase().indexOf('denied') !== -1) {
+        if (msg.toLowerCase().indexOf('cancel') !== -1 || msg.toLowerCase().indexOf('reject') !== -1 || msg.toLowerCase().indexOf('denied') !== -1 || msg.toLowerCase().indexOf('userrejection') !== -1) {
           window.alert('Transaction cancelled by user');
         } else {
           window.alert('Payment failed: ' + msg);

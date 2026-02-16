@@ -8,6 +8,7 @@
     { "source": "/agents/:path*", "destination": "/api" },
     { "source": "/webhooks/:path*", "destination": "/api" },
     { "source": "/stats", "destination": "/api" },
+    { "source": "/config", "destination": "/api" },
     { "source": "/health", "destination": "/api" },
     { "source": "/docs", "destination": "/docs.html" }
   ]
