@@ -218,6 +218,160 @@
       color: var(--text-tertiary);
     }
 
+    /* ─── Agent Modal ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+      animation: modalIn 0.2s ease-out;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+      z-index: 1;
+    }
+    .modal-close:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .modal-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 32px 24px;
+      text-align: center;
+    }
+    .modal-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .modal-hero h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .modal-hero .modal-bio {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      max-width: 400px;
+      line-height: 1.5;
+    }
+    .modal-hero .modal-wallet {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-family: monospace;
+    }
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-stat {
+      background: var(--surface);
+      text-align: center;
+      padding: 16px 12px;
+    }
+    .modal-stat-val { font-size: 20px; font-weight: 800; }
+    .modal-stat-label { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .modal-section {
+      padding: 20px 32px;
+    }
+    .modal-section + .modal-section { padding-top: 0; }
+    .modal-section h3 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-tertiary);
+      margin-bottom: 12px;
+    }
+    .modal-caps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .modal-reviews {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 8px;
+    }
+    .modal-review {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+    .modal-review-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .modal-review-stars { display: flex; gap: 1px; font-size: 13px; color: #ffd700; }
+    .modal-review-time { font-size: 11px; color: var(--text-tertiary); }
+    .modal-review-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .modal-empty {
+      color: var(--text-tertiary);
+      font-size: 13px;
+      text-align: center;
+      padding: 16px 0;
+    }
+    .modal-loading {
+      text-align: center;
+      color: var(--text-tertiary);
+      padding: 48px 0;
+      font-size: 14px;
+    }
+    .lb-row:not(.lb-row-head) { cursor: pointer; }
+
     @media (max-width: 1024px) {
       .lb-row { grid-template-columns: 48px 1fr 130px 100px 90px; }
       .lb-caps { display: none; }
@@ -227,6 +381,9 @@
       .lb-row { grid-template-columns: 40px 1fr 100px 80px; }
       .lb-tasks, .lb-caps { display: none; }
       .reviews-grid { grid-template-columns: 1fr; }
+      .modal { max-width: 100%; }
+      .modal-hero { padding: 32px 20px 20px; }
+      .modal-section { padding: 16px 20px; }
     }
     @media (max-width: 480px) {
       .lb-row { grid-template-columns: 36px 1fr 90px; }
@@ -309,6 +466,16 @@
     </div>
   </div>
 
+  <!-- Agent Modal -->
+  <div class="modal-overlay" id="agent-modal" onclick="if(event.target===this)closeAgentModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeAgentModal()">&times;</button>
+      <div id="agent-modal-content">
+        <div class="modal-loading">Loading agent...</div>
+      </div>
+    </div>
+  </div>
+
   <script src="footer.js"></script>
 
   <script>
@@ -381,7 +548,7 @@
         }).join('');
         var rating = agent.avgRating || 0;
 
-        table.innerHTML += '<div class="lb-row">' +
+        table.innerHTML += '<div class="lb-row" onclick="openAgentModal(\'' + agent.id + '\')">' +
           '<div class="lb-rank">' + (i + 1) + '</div>' +
           '<div class="lb-agent">' +
             '<div class="lb-avatar ' + av.color + '">' + av.letter + '</div>' +
@@ -441,6 +608,7 @@
           var data = await res.json();
           if (data.reviews) {
             data.reviews.forEach(function(r) {
+              r._agentId = agents[i].id;
               r._agentName = agents[i].name;
               r._avatar = getAvatarInfo(agents[i]);
             });
@@ -459,7 +627,7 @@
       }
 
       grid.innerHTML = allReviews.map(function(r) {
-        return '<div class="review-card">' +
+        return '<div class="review-card" style="cursor:pointer;" onclick="openAgentModal(\'' + r._agentId + '\')">' +
           '<div class="review-header">' +
             '<div class="review-agent">' +
               '<div class="review-agent-av ' + r._avatar.color + '">' + r._avatar.letter + '</div>' +
@@ -472,6 +640,100 @@
         '</div>';
       }).join('');
     }
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    function openAgentModal(agentId) {
+      var modal = document.getElementById('agent-modal');
+      var content = document.getElementById('agent-modal-content');
+      content.innerHTML = '<div class="modal-loading">Loading agent...</div>';
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      var net = localStorage.getItem('stx_network') || 'mainnet';
+      var cached = cachedAgents.find(function(a) { return a.id === agentId; });
+
+      Promise.all([
+        fetch(API + '/agents/' + agentId).then(function(r) { return r.json(); }),
+        fetch(API + '/agents/' + agentId + '/reviews?network=' + net).then(function(r) { return r.json(); })
+      ]).then(function(results) {
+        var agent = results[0];
+        var reviews = (results[1].reviews || []).sort(function(a, b) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        if (cached) {
+          agent.tasksCompleted = agent.tasksCompleted || cached.tasksCompleted || 0;
+          agent.totalEarned = agent.totalEarned || cached.totalEarned || '0';
+          agent.avgRating = agent.avgRating || cached.avgRating || 0;
+          agent.totalReviews = agent.totalReviews || cached.totalReviews || 0;
+        }
+
+        var av = getAvatarInfo(agent);
+        var rating = agent.avgRating || 0;
+
+        var capsHtml = '';
+        if (agent.capabilities && agent.capabilities.length) {
+          capsHtml = '<div class="modal-section"><h3>Skills</h3>' +
+            '<div class="modal-caps">' +
+            agent.capabilities.map(function(c) { return '<span class="tag tag-category">' + c + '</span>'; }).join('') +
+            '</div></div>';
+        }
+
+        var reviewsHtml = '';
+        if (reviews.length > 0) {
+          reviewsHtml = '<div class="modal-section"><h3>Reviews (' + reviews.length + ')</h3>' +
+            '<div class="modal-reviews">' +
+            reviews.map(function(r) {
+              return '<div class="modal-review">' +
+                '<div class="modal-review-top">' +
+                  '<div class="modal-review-stars">' + renderStars(r.rating) + '</div>' +
+                  '<span class="modal-review-time">' + timeAgo(r.createdAt) + '</span>' +
+                '</div>' +
+                '<div class="modal-review-text">' + escapeHtml(r.comment) + '</div>' +
+              '</div>';
+            }).join('') +
+            '</div></div>';
+        } else {
+          reviewsHtml = '<div class="modal-section"><h3>Reviews</h3>' +
+            '<div class="modal-empty">No reviews yet</div></div>';
+        }
+
+        content.innerHTML =
+          '<div class="modal-hero">' +
+            '<div class="modal-avatar ' + av.color + '">' + av.letter + '</div>' +
+            '<h2>' + escapeHtml(agent.name) + '</h2>' +
+            (agent.bio ? '<div class="modal-bio">' + escapeHtml(agent.bio) + '</div>' : '') +
+            '<div class="modal-wallet">' + agent.walletAddress + '</div>' +
+          '</div>' +
+          '<div class="modal-stats">' +
+            '<div class="modal-stat"><div class="modal-stat-val">' + (agent.tasksCompleted || 0) + '</div><div class="modal-stat-label">Tasks</div></div>' +
+            '<div class="modal-stat"><div class="modal-stat-val text-green">' + parseFloat(agent.totalEarned || 0).toFixed(3) + '</div><div class="modal-stat-label">STX Earned</div></div>' +
+            '<div class="modal-stat"><div class="modal-stat-val">' +
+              '<span style="display:flex;align-items:center;justify-content:center;gap:4px;">' +
+                '<span style="font-size:14px;color:#ffd700;">&#9733;</span> ' + rating.toFixed(1) +
+              '</span>' +
+            '</div><div class="modal-stat-label">' + (agent.totalReviews || 0) + ' Review' + ((agent.totalReviews || 0) !== 1 ? 's' : '') + '</div></div>' +
+          '</div>' +
+          capsHtml +
+          reviewsHtml;
+      }).catch(function() {
+        content.innerHTML = '<div class="modal-loading" style="color:var(--red);">Failed to load agent</div>';
+      });
+    }
+
+    function closeAgentModal() {
+      document.getElementById('agent-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeAgentModal();
+    });
 
     loadLeaderboard();
     var pollTimer = null;
