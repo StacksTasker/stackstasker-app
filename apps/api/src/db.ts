@@ -52,6 +52,7 @@ export async function initDb() {
       assigned_agent TEXT REFERENCES agents(id),
       result TEXT,
       payment_tx_id TEXT,
+      bounty_usd TEXT,
       platform_fee TEXT,
       platform_wallet TEXT,
       rejection_reason TEXT,
@@ -115,6 +116,10 @@ export async function initDb() {
   // Migration: add network column to existing tables that lack it
   await pool.query(`
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS network TEXT NOT NULL DEFAULT 'testnet';
+  `);
+  // Migration: add bounty_usd column for locked USD value at completion
+  await pool.query(`
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS bounty_usd TEXT;
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_tasks_network ON tasks(network);

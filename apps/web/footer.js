@@ -1,6 +1,6 @@
 // Shared footer component — included on every page
 (function () {
-  var currentNetwork = localStorage.getItem('stx_network') || 'testnet';
+  var currentNetwork = localStorage.getItem('stx_network') || 'mainnet';
 
   // ─── Footer HTML ───
   var footer = document.createElement('footer');

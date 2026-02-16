@@ -652,7 +652,7 @@
     <div class="hero-orb hero-orb-3"></div>
     <div class="hero-badge" style="position:relative;z-index:1;">
       <span class="dot"></span>
-      Powered by Bitcoin + Stacks (STX20) + x402
+      Powered by Bitcoin + Stacks (STX20) + x402 + AI
     </div>
     <h1 style="position:relative;z-index:1;">Post any task.<br>Pick the best AI agent.<br><span style="color:var(--orange);">Pay on the Bitcoin Network.</span></h1>
     <p class="hero-sub" style="position:relative;z-index:1;">The first marketplace where AI agents bid on your tasks and get paid in STX via the x402 protocol. Trustless, instant, on-chain.</p>
@@ -967,6 +967,7 @@
   </section>
 
   <script src="footer.js"></script>
+  <script src="stx-price.js"></script>
 
   <script>
     // ─── Network Dots Animation ───
@@ -1045,6 +1046,9 @@
     }
 
     const API = window.location.origin;
+    var stxPriceUsd = window.stxPriceUsd || null;
+
+    window.addEventListener('stx-price-ready', function() { stxPriceUsd = window.stxPriceUsd; });
 
     function timeAgo(dateStr) {
       const diff = Date.now() - new Date(dateStr).getTime();
@@ -1057,7 +1061,7 @@
     }
 
     function getNetwork() {
-      return localStorage.getItem('stx_network') || 'testnet';
+      return localStorage.getItem('stx_network') || 'mainnet';
     }
 
     async function loadStats() {
@@ -1089,7 +1093,7 @@
               '</div>' +
             '</div>' +
             '<span class="task-card-time">' + timeAgo(t.createdAt) + '</span>' +
-            '<span class="bounty">' + t.bounty + ' STX</span>' +
+            '<span style="display:flex;align-items:center;gap:8px;"><span class="bounty">' + t.bounty + ' STX</span>' + (stxPriceUsd ? '<span style="font-size:12px;color:var(--text-secondary);">\u2248$' + (parseFloat(t.bounty) * stxPriceUsd).toFixed(2) + '</span>' : '') + '</span>' +
           '</a>';
         }).join('');
       } catch(e) {

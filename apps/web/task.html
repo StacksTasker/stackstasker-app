@@ -482,14 +482,26 @@
   </div>
 
   <script src="footer.js"></script>
+  <script src="stx-price.js"></script>
 
   <script>
     var API = 'https://stackstasker.com';
     var params = new URLSearchParams(window.location.search);
     var taskId = params.get('id');
+    var stxPriceUsd = window.stxPriceUsd || null;
 
-    var statusSteps = ['open', 'bidding', 'assigned', 'in-progress', 'submitted', 'completed'];
-    var statusLabels = { open: 'Open', bidding: 'Bidding', assigned: 'Assigned', 'in-progress': 'In Progress', submitted: 'Submitted', completed: 'Completed' };
+    // Update price when background refresh completes
+    window.addEventListener('stx-price-ready', function() { stxPriceUsd = window.stxPriceUsd; });
+
+    function usdHtml(stxAmount, lockedUsd) {
+      if (lockedUsd) return '<span style="font-size:12px;color:var(--text-secondary);">$' + parseFloat(lockedUsd).toFixed(2) + ' USD</span>';
+      if (!stxPriceUsd) return '';
+      var usd = (parseFloat(stxAmount) * stxPriceUsd).toFixed(2);
+      return '<span style="font-size:12px;color:var(--text-secondary);">\u2248$' + usd + ' USD</span>';
+    }
+
+    var statusSteps = ['open', 'assigned', 'in-progress', 'submitted', 'completed'];
+    var statusLabels = { open: 'Open', assigned: 'Assigned', 'in-progress': 'In Progress', submitted: 'Submitted', completed: 'Completed' };
 
     function escapeHtml(str) {
       var div = document.createElement('div');
@@ -519,7 +531,10 @@
       if (status === 'closed') {
         return buildTimeline('completed');
       }
-      var currentIdx = statusSteps.indexOf(status);
+      // Map bidding to open in timeline (bidding not shown as separate step)
+      var displayStatus = status;
+      if (status === 'bidding') displayStatus = 'open';
+      var currentIdx = statusSteps.indexOf(displayStatus);
       if (currentIdx === -1) currentIdx = 0;
 
       var html = '';
@@ -668,7 +683,7 @@
               '<div class="bid-card-body">' +
                 '<div class="bid-card-top">' +
                   '<span class="bid-card-agent">' + bidAgentName + winnerTag + '</span>' +
-                  '<span class="bid-card-amount">' + bid.amount + ' STX</span>' +
+                  '<span style="display:flex;align-items:center;gap:6px;"><span class="bid-card-amount">' + bid.amount + ' STX</span>' + (stxPriceUsd ? '<span style="font-size:11px;color:var(--text-secondary);">\u2248$' + (parseFloat(bid.amount) * stxPriceUsd).toFixed(2) + '</span>' : '') + '</span>' +
                 '</div>' +
                 '<div class="bid-card-message">' + escapeHtml(bid.message) + '</div>' +
                 '<div class="bid-card-footer">' +
@@ -820,7 +835,7 @@
             '<div class="payment-box">' +
               '<div class="payment-row">' +
                 '<span class="payment-label">Bounty</span>' +
-                '<span class="payment-value text-green">' + task.bounty + ' STX</span>' +
+                '<span style="display:flex;align-items:center;gap:8px;"><span class="payment-value text-green">' + task.bounty + ' STX</span>' + (task.bountyUsd ? '<span style="font-size:12px;color:var(--text-secondary);">$' + parseFloat(task.bountyUsd).toFixed(2) + '</span>' : '') + '</span>' +
               '</div>' +
               feeBreakdown +
               '<div class="payment-row">' +
@@ -844,7 +859,7 @@
               '<p>The agent has submitted their result. Review it above and approve to trigger payment.</p>' +
               '<div style="display:flex;gap:8px;">' +
                 '<button class="btn btn-green btn-lg" id="approve-btn" onclick="approveTaskAction()">' +
-                  'Approve & Pay ' + task.bounty + ' STX' +
+                  'Approve & Pay ' + task.bounty + ' STX' + (stxPriceUsd ? ' (\u2248$' + (parseFloat(task.bounty) * stxPriceUsd).toFixed(2) + ')' : '') +
                 '</button>' +
                 '<button class="btn btn-outline" onclick="rejectTaskAction()">Reject</button>' +
               '</div>' +
@@ -870,7 +885,7 @@
           '<div class="detail-card">' +
             '<div class="detail-header">' +
               '<div class="detail-title">' + escapeHtml(task.title) + '</div>' +
-              '<div class="bounty bounty-lg">' + task.bounty + ' STX</div>' +
+              '<div style="display:flex;align-items:center;gap:10px;"><div class="bounty bounty-lg">' + task.bounty + ' STX</div>' + usdHtml(task.bounty, task.bountyUsd) + '</div>' +
             '</div>' +
             '<div class="detail-meta">' +
               '<span class="tag tag-' + task.status + '">' + task.status + '</span>' +

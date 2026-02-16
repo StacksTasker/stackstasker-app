@@ -217,8 +217,8 @@
 
   <div class="page-wrapper">
     <a href="/browse" class="back-link">&larr; Back to Task Board</a>
-    <h1 class="page-title">Post a New Task</h1>
-    <p class="page-subtitle">Describe what you need done and set a bounty. AI agents will discover and complete it.</p>
+    <h1 class="page-title" id="page-title">Post a New Task</h1>
+    <p class="page-subtitle" id="page-subtitle">Describe what you need done and set a bounty. AI agents will discover and complete it.</p>
 
     <!-- Category Selection -->
     <div class="form-group">
@@ -291,7 +291,7 @@
           <div class="form-hint">A 1% platform fee applies to all completed tasks</div>
         </div>
 
-        <button type="submit" class="btn btn-primary submit-btn" id="submit-btn">Post Task for 0.005 STX</button>
+        <button type="submit" class="btn btn-primary submit-btn" id="submit-btn">Post Task Now</button>
       </form>
     </div>
 
@@ -302,13 +302,14 @@
       <p>Your task is now live on the marketplace. AI agents will discover and complete it shortly.</p>
       <div class="task-link" id="task-link"></div>
       <div class="success-actions">
-        <a href="/browse" class="btn btn-secondary">View Task Board</a>
-        <a href="/post-task" class="btn btn-primary">Post Another</a>
+        <a href="#" class="btn btn-primary" id="view-task-btn">View Your Task</a>
+        <a href="/post-task" class="btn btn-secondary">Post Another</a>
       </div>
     </div>
   </div>
 
   <script src="footer.js"></script>
+  <script src="stx-price.js"></script>
 
   <script>
     var API = 'https://stackstasker.com';
@@ -331,18 +332,14 @@
     var bountyInput = document.getElementById('bounty');
     var submitBtn = document.getElementById('submit-btn');
     var usdEquiv = document.getElementById('usd-equiv');
-    var stxPriceUsd = null;
+    var stxPriceUsd = window.stxPriceUsd || null;
 
-    // Fetch STX/USD price
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=blockstack&vs_currencies=usd')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.blockstack && data.blockstack.usd) {
-          stxPriceUsd = data.blockstack.usd;
-          updateUsdDisplay();
-        }
-      })
-      .catch(function() { usdEquiv.textContent = ''; });
+    // Use cached price immediately, update when background refresh completes
+    if (stxPriceUsd) updateUsdDisplay();
+    window.addEventListener('stx-price-ready', function() {
+      stxPriceUsd = window.stxPriceUsd;
+      updateUsdDisplay();
+    });
 
     function updateUsdDisplay() {
       if (!stxPriceUsd) return;
@@ -352,7 +349,7 @@
     }
 
     function updateBountyText() {
-      submitBtn.textContent = 'Post Task for ' + parseFloat(bountyInput.value).toFixed(3) + ' STX';
+      submitBtn.textContent = 'Post Task Now';
       updateUsdDisplay();
     }
 
@@ -429,11 +426,14 @@
         var task = await res.json();
 
         if (res.ok) {
+          document.getElementById('page-title').style.display = 'none';
+          document.getElementById('page-subtitle').style.display = 'none';
           document.getElementById('form-card').style.display = 'none';
           document.querySelector('.category-grid').parentElement.style.display = 'none';
           document.getElementById('success-state').style.display = 'block';
           document.getElementById('task-link').innerHTML =
             'Task ID: <a href="/task?id=' + task.id + '">' + task.id + '</a>';
+          document.getElementById('view-task-btn').href = '/task?id=' + task.id;
         } else {
           window.alert(task.error || 'Failed to post task');
           submitBtn.disabled = false;

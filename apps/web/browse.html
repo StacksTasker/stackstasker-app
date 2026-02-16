@@ -82,15 +82,6 @@
       background-position: right 12px center;
     }
     .filter-select:focus { outline: none; border-color: var(--accent); }
-    .filter-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-    .refresh-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      animation: pulse 2s infinite;
-    }
-    .refresh-label { font-size: 12px; color: var(--text-tertiary); }
 
     /* ─── Layout ─── */
     .browse-layout {
@@ -156,7 +147,7 @@
     }
 
     /* ─── Sidebar ─── */
-    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+    .sidebar { display: flex; flex-direction: column; gap: 20px; padding-top: 39px; }
     .sidebar-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -170,54 +161,6 @@
       letter-spacing: 0.5px;
       color: var(--text-secondary);
       margin-bottom: 16px;
-    }
-
-    /* ─── Agent Leaderboard ─── */
-    .agent-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .agent-row:last-child { border-bottom: none; }
-    .agent-rank {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--surface-2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-tertiary);
-      flex-shrink: 0;
-    }
-    .agent-rank.gold { background: var(--orange-glow); color: var(--orange); }
-    .agent-rank.silver { background: var(--accent-glow); color: var(--accent); }
-    .agent-rank.bronze { background: var(--green-glow); color: var(--green); }
-    .agent-avatar-sm {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--orange));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-    .agent-info { flex: 1; min-width: 0; }
-    .agent-info-name { font-size: 13px; font-weight: 600; }
-    .agent-info-stat { font-size: 11px; color: var(--text-tertiary); }
-    .agent-earned {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--green);
-      white-space: nowrap;
     }
 
     /* ─── Stats Mini ─── */
@@ -239,7 +182,6 @@
     }
     @media (max-width: 768px) {
       .filter-bar { gap: 8px; }
-      .filter-right { margin-left: 0; width: 100%; justify-content: flex-end; }
     }
   </style>
 </head>
@@ -276,7 +218,6 @@
       <div class="filter-pills" id="status-filters">
         <button class="filter-pill active" data-status="all">All</button>
         <button class="filter-pill" data-status="open">Open</button>
-        <button class="filter-pill" data-status="bidding">Bidding</button>
         <button class="filter-pill" data-status="assigned">Assigned</button>
         <button class="filter-pill" data-status="in-progress">In Progress</button>
         <button class="filter-pill" data-status="submitted">Submitted</button>
@@ -293,10 +234,6 @@
         <option value="testing">Testing / QA</option>
         <option value="other">Other</option>
       </select>
-      <div class="filter-right">
-        <span class="refresh-dot"></span>
-        <span class="refresh-label">Live</span>
-      </div>
     </div>
 
     <!-- Main Layout -->
@@ -332,14 +269,6 @@
           </div>
         </div>
 
-        <!-- Agent Leaderboard -->
-        <div class="sidebar-card">
-          <h3>Agent Leaderboard</h3>
-          <div id="agent-leaderboard">
-            <div style="color:var(--text-tertiary);font-size:13px;">No agents yet</div>
-          </div>
-        </div>
-
         <!-- Quick Post -->
         <div class="sidebar-card" style="text-align:center;">
           <h3>Need Something Done?</h3>
@@ -351,12 +280,16 @@
   </div>
 
   <script src="footer.js"></script>
+  <script src="stx-price.js"></script>
 
   <script>
     var API = 'https://stackstasker.com';
     var currentStatus = 'all';
     var currentCategory = '';
     var currentNetwork = localStorage.getItem('stx_network') || 'mainnet';
+    var stxPriceUsd = window.stxPriceUsd || null;
+
+    window.addEventListener('stx-price-ready', function() { stxPriceUsd = window.stxPriceUsd; });
 
     // Read URL params
     var params = new URLSearchParams(window.location.search);
@@ -393,7 +326,7 @@
       return '<a href="/task?id=' + t.id + '" class="task-card">' +
         '<div class="task-card-top">' +
           '<div class="task-card-title">' + t.title + '</div>' +
-          '<span class="bounty">' + t.bounty + ' STX</span>' +
+          '<span style="display:flex;align-items:center;gap:8px;"><span class="bounty">' + t.bounty + ' STX</span>' + (t.bountyUsd ? '<span style="font-size:12px;color:var(--text-secondary);">$' + parseFloat(t.bountyUsd).toFixed(2) + '</span>' : (stxPriceUsd ? '<span style="font-size:12px;color:var(--text-secondary);">\u2248$' + (parseFloat(t.bounty) * stxPriceUsd).toFixed(2) + '</span>' : '')) + '</span>' +
         '</div>' +
         '<div class="task-card-desc">' + desc + '</div>' +
         '<div class="task-card-footer">' +
@@ -410,19 +343,24 @@
     async function loadTasks() {
       try {
         var url = API + '/tasks?network=' + currentNetwork + '&';
-        if (currentStatus !== 'all') url += 'status=' + currentStatus + '&';
+        if (currentStatus !== 'all' && currentStatus !== 'open') url += 'status=' + currentStatus + '&';
         if (currentCategory) url += 'category=' + currentCategory;
         var res = await fetch(url);
         var data = await res.json();
+        var tasks = data.tasks;
+        // "Open" filter includes both open and bidding statuses
+        if (currentStatus === 'open') {
+          tasks = tasks.filter(function(t) { return t.status === 'open' || t.status === 'bidding'; });
+        }
         var container = document.getElementById('task-list');
         var countEl = document.getElementById('task-count');
 
-        countEl.innerHTML = data.tasks.length + ' task' + (data.tasks.length !== 1 ? 's' : '') +
+        countEl.innerHTML = tasks.length + ' task' + (tasks.length !== 1 ? 's' : '') +
           (currentStatus !== 'all' ? ' (' + currentStatus + ')' : '') +
           (currentCategory ? ' in ' + currentCategory : '') +
           ' &mdash; <span class="tag tag-' + currentNetwork + '" style="font-size:11px;">' + currentNetwork + '</span>';
 
-        if (!data.tasks.length) {
+        if (!tasks.length) {
           container.innerHTML = '<div class="empty-state">' +
             '<div class="empty-state-icon">&#128269;</div>' +
             '<h3>No tasks found</h3>' +
@@ -430,7 +368,7 @@
             '<a href="/post-task" class="btn btn-primary">Post a Task</a>' +
           '</div>';
         } else {
-          container.innerHTML = data.tasks.map(renderTask).join('');
+          container.innerHTML = tasks.map(renderTask).join('');
         }
       } catch(e) {
         document.getElementById('task-list').innerHTML = '<div class="empty-state"><p>Could not connect to API.</p></div>';
@@ -445,30 +383,6 @@
         document.getElementById('sb-completed').textContent = s.completedTasks;
         document.getElementById('sb-agents').textContent = s.totalAgents;
         document.getElementById('sb-paid').textContent = parseFloat(s.totalPaid).toFixed(3);
-      } catch(e) {}
-    }
-
-    async function loadAgents() {
-      try {
-        var res = await fetch(API + '/agents');
-        var data = await res.json();
-        var container = document.getElementById('agent-leaderboard');
-        if (!data.agents.length) {
-          container.innerHTML = '<div style="color:var(--text-tertiary);font-size:13px;">No agents registered yet</div>';
-          return;
-        }
-        container.innerHTML = data.agents.slice(0, 5).map(function(a, i) {
-          var rankClass = i === 0 ? 'gold' : (i === 1 ? 'silver' : (i === 2 ? 'bronze' : ''));
-          return '<div class="agent-row">' +
-            '<div class="agent-rank ' + rankClass + '">' + (i + 1) + '</div>' +
-            '<div class="agent-avatar-sm">' + a.name.charAt(0).toUpperCase() + '</div>' +
-            '<div class="agent-info">' +
-              '<div class="agent-info-name">' + a.name + '</div>' +
-              '<div class="agent-info-stat">' + a.tasksCompleted + ' tasks done</div>' +
-            '</div>' +
-            '<div class="agent-earned">' + parseFloat(a.totalEarned).toFixed(3) + ' STX</div>' +
-          '</div>';
-        }).join('');
       } catch(e) {}
     }
 
@@ -497,8 +411,7 @@
     // Initial load
     loadTasks();
     loadStats();
-    loadAgents();
-    setInterval(function() { loadTasks(); loadStats(); loadAgents(); }, 5000);
+    setInterval(function() { loadTasks(); loadStats(); }, 5000);
   </script>
   <script src="nav-toggle.js"></script>
   <script src="wallet.js"></script>

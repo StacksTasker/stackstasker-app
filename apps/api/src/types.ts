@@ -46,6 +46,8 @@ export interface Task {
   result?: string;
   /** Transaction ID for the payment */
   paymentTxId?: string;
+  /** Bounty value in USD at time of completion (locked) */
+  bountyUsd?: string;
   /** Platform fee taken (STX) */
   platformFee?: string;
   /** Platform wallet address */

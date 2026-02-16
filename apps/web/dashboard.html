@@ -260,6 +260,7 @@
         <div class="filter-pills" id="status-filters">
           <button class="filter-pill active" data-status="all">All</button>
           <button class="filter-pill" data-status="open">Open</button>
+          <button class="filter-pill" data-status="assigned">Assigned</button>
           <button class="filter-pill" data-status="in-progress">In Progress</button>
           <button class="filter-pill" data-status="submitted">Submitted</button>
           <button class="filter-pill" data-status="completed">Completed</button>
@@ -279,6 +280,7 @@
   </div>
 
   <script src="footer.js"></script>
+  <script src="stx-price.js"></script>
 
   <script>
     var API = 'https://stackstasker.com';
@@ -286,6 +288,9 @@
     var currentNetwork = localStorage.getItem('stx_network') || 'mainnet';
     var allTasks = [];
     var pollInterval = null;
+    var stxPriceUsd = window.stxPriceUsd || null;
+
+    window.addEventListener('stx-price-ready', function() { stxPriceUsd = window.stxPriceUsd; });
 
     function getWalletAddress() {
       return localStorage.getItem('stx_address') || null;
@@ -340,7 +345,7 @@
       return '<a href="/task?id=' + t.id + '" class="task-card">' +
         '<div class="task-card-top">' +
           '<div class="task-card-title">' + t.title + '</div>' +
-          '<span class="bounty">' + t.bounty + ' STX</span>' +
+          '<span style="display:flex;align-items:center;gap:8px;"><span class="bounty">' + t.bounty + ' STX</span>' + (t.bountyUsd ? '<span style="font-size:12px;color:var(--text-secondary);">$' + parseFloat(t.bountyUsd).toFixed(2) + '</span>' : (stxPriceUsd ? '<span style="font-size:12px;color:var(--text-secondary);">\u2248$' + (parseFloat(t.bounty) * stxPriceUsd).toFixed(2) + '</span>' : '')) + '</span>' +
         '</div>' +
         '<div class="task-card-desc">' + desc + '</div>' +
         '<div class="task-card-footer">' +
@@ -355,7 +360,7 @@
     }
 
     function updateStats(tasks) {
-      var activeStatuses = ['open', 'bidding', 'assigned', 'in-progress'];
+      var activeStatuses = ['open', 'bidding', 'assigned', 'in-progress', 'submitted'];
       var total = tasks.length;
       var active = tasks.filter(function(t) { return activeStatuses.indexOf(t.status) !== -1; }).length;
       var review = tasks.filter(function(t) { return t.status === 'submitted'; }).length;
@@ -370,7 +375,11 @@
     function filterAndRender() {
       var tasks = allTasks;
       if (currentStatus !== 'all') {
-        tasks = allTasks.filter(function(t) { return t.status === currentStatus; });
+        if (currentStatus === 'open') {
+          tasks = allTasks.filter(function(t) { return t.status === 'open' || t.status === 'bidding'; });
+        } else {
+          tasks = allTasks.filter(function(t) { return t.status === currentStatus; });
+        }
       }
 
       var container = document.getElementById('task-list');

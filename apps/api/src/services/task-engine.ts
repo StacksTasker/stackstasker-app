@@ -56,6 +56,7 @@ function rowToTask(row: Record<string, unknown>): Task {
     assignedAgent: (row.assigned_agent as string) || undefined,
     result: (row.result as string) || undefined,
     paymentTxId: (row.payment_tx_id as string) || undefined,
+    bountyUsd: (row.bounty_usd as string) || undefined,
     platformFee: (row.platform_fee as string) || undefined,
     platformWallet: (row.platform_wallet as string) || undefined,
     rejectionReason: (row.rejection_reason as string) || undefined,
@@ -324,6 +325,21 @@ export async function approveTask(taskId: string, txId?: string): Promise<Task |
 
   const now = new Date();
 
+  // Fetch STX/USD price to lock USD value at completion time
+  let bountyUsd: string | null = null;
+  try {
+    const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=blockstack&vs_currencies=usd');
+    if (priceRes.ok) {
+      const priceData = await priceRes.json() as { blockstack?: { usd?: number } };
+      if (priceData.blockstack?.usd) {
+        bountyUsd = (parseFloat(task.bounty) * priceData.blockstack.usd).toFixed(2);
+        console.log(`[TaskEngine] Locked USD value: $${bountyUsd} (1 STX = $${priceData.blockstack.usd})`);
+      }
+    }
+  } catch {
+    console.log(`[TaskEngine] Could not fetch STX/USD price, USD value not locked`);
+  }
+
   // Use transaction to atomically update task + agent
   const client = await getClient();
   try {
@@ -332,9 +348,9 @@ export async function approveTask(taskId: string, txId?: string): Promise<Task |
     const { rows } = await client.query(
       `UPDATE tasks
        SET status = 'completed', payment_tx_id = $1, platform_fee = $2,
-           platform_wallet = $3, completed_at = $4, updated_at = $4
-       WHERE id = $5 RETURNING *`,
-      [paymentTxId, platformFee.toFixed(6), PLATFORM_WALLET, now, taskId]
+           platform_wallet = $3, bounty_usd = $4, completed_at = $5, updated_at = $5
+       WHERE id = $6 RETURNING *`,
+      [paymentTxId, platformFee.toFixed(6), PLATFORM_WALLET, bountyUsd, now, taskId]
     );
 
     if (task.assignedAgent) {
