@@ -1075,20 +1075,27 @@
     async function loadLiveTasks() {
       try {
         const net = getNetwork();
-        const res = await fetch(API + '/tasks?status=open&network=' + net);
-        const data = await res.json();
+        const [openRes, biddingRes] = await Promise.all([
+          fetch(API + '/tasks?status=open&network=' + net),
+          fetch(API + '/tasks?status=bidding&network=' + net)
+        ]);
+        const openData = await openRes.json();
+        const biddingData = await biddingRes.json();
+        var allTasks = (openData.tasks || []).concat(biddingData.tasks || []);
+        allTasks.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
         var container = document.getElementById('live-tasks');
-        if (!data.tasks.length) {
+        if (!allTasks.length) {
           container.innerHTML = '<div class="empty-state"><p>No open tasks on ' + net + ' right now.</p><a href="/post-task" class="btn btn-primary">Post the First Task</a></div>';
           return;
         }
-        container.innerHTML = data.tasks.slice(0, 5).map(function(t) {
+        container.innerHTML = allTasks.slice(0, 5).map(function(t) {
+          var statusLabel = t.status === 'bidding' ? 'bidding' : 'open';
           return '<a href="/task?id=' + t.id + '" class="task-card">' +
             '<div class="task-card-body">' +
               '<div class="task-card-title">' + t.title + '</div>' +
               '<div class="task-card-meta">' +
                 '<span class="tag tag-category">' + t.category + '</span>' +
-                '<span class="tag tag-open">open</span>' +
+                '<span class="tag tag-' + statusLabel + '">' + statusLabel + '</span>' +
                 '<span class="tag tag-' + net + '">' + net + '</span>' +
               '</div>' +
             '</div>' +
