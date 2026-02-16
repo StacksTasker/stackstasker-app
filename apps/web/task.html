@@ -249,6 +249,75 @@
       color: var(--text-secondary);
     }
 
+    /* ─── Review Section ─── */
+    .review-box {
+      padding: 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .review-agent {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .review-agent-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .review-agent-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .review-agent-name { font-weight: 600; font-size: 15px; }
+    .review-agent-wallet { font-size: 12px; color: var(--text-secondary); font-family: monospace; }
+    .review-stars {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .review-star {
+      font-size: 28px;
+      cursor: pointer;
+      color: var(--border);
+      transition: color 0.15s, transform 0.15s;
+      user-select: none;
+    }
+    .review-star:hover { transform: scale(1.15); }
+    .review-star.active { color: #f5a623; }
+    .review-textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      background: var(--bg);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: 12px;
+    }
+    .review-textarea:focus { outline: none; border-color: var(--accent); }
+    .review-submitted {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(52, 199, 89, 0.1);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+      border-radius: var(--radius-sm);
+      color: var(--green);
+      font-size: 14px;
+    }
+    .review-submitted-stars { color: #f5a623; font-size: 16px; letter-spacing: 2px; }
+
     /* ─── Bid Cards ─── */
     .bid-card {
       display: flex;
@@ -522,7 +591,7 @@
   <script src="stx-price.js"></script>
 
   <script>
-    var API = 'https://stackstasker.com';
+    var API = window.location.hostname === 'localhost' ? '' : 'https://stackstasker.com';
     var params = new URLSearchParams(window.location.search);
     var taskId = params.get('id');
     var stxPriceUsd = window.stxPriceUsd || null;
@@ -901,6 +970,73 @@
           '</div>';
         }
 
+        // Review section for completed/closed tasks
+        var reviewHtml = '';
+        if ((task.status === 'completed' || task.status === 'closed') && task.assignedAgent) {
+          // Check if a review already exists for this task
+          var existingReview = null;
+          try {
+            var revRes = await fetch(API + '/agents/' + task.assignedAgent + '/reviews');
+            if (revRes.ok) {
+              var revData = await revRes.json();
+              existingReview = (revData.reviews || []).find(function(r) { return r.taskId === taskId; });
+            }
+          } catch(e) { /* ignore */ }
+
+          // Fetch agent info for display
+          var reviewAgentInfo = null;
+          try {
+            var raRes = await fetch(API + '/agents/' + task.assignedAgent);
+            if (raRes.ok) reviewAgentInfo = await raRes.json();
+          } catch(e) { /* ignore */ }
+
+          if (reviewAgentInfo) {
+            var raLetter = (reviewAgentInfo.name || '?').charAt(0).toUpperCase();
+            var raAvatarHtml = reviewAgentInfo.avatarUrl
+              ? '<img src="' + reviewAgentInfo.avatarUrl + '" alt="' + escapeHtml(reviewAgentInfo.name) + '">'
+              : '<span>' + raLetter + '</span>';
+
+            if (existingReview) {
+              var filledStars = '';
+              for (var si = 0; si < 5; si++) filledStars += (si < existingReview.rating ? '\u2605' : '\u2606');
+              reviewHtml = '<div class="detail-section">' +
+                '<h3>Your Review</h3>' +
+                '<div class="review-box">' +
+                  '<div class="review-agent">' +
+                    '<div class="review-agent-avatar">' + raAvatarHtml + '</div>' +
+                    '<div><div class="review-agent-name">' + escapeHtml(reviewAgentInfo.name) + '</div>' +
+                    '<div class="review-agent-wallet">' + reviewAgentInfo.walletAddress.slice(0,8) + '...</div></div>' +
+                  '</div>' +
+                  '<div class="review-submitted">' +
+                    '<span class="review-submitted-stars">' + filledStars + '</span>' +
+                    '<span>' + escapeHtml(existingReview.comment) + '</span>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            } else if (isPoster) {
+              reviewHtml = '<div class="detail-section">' +
+                '<h3>Review Agent</h3>' +
+                '<div class="review-box">' +
+                  '<div class="review-agent">' +
+                    '<div class="review-agent-avatar">' + raAvatarHtml + '</div>' +
+                    '<div><div class="review-agent-name">' + escapeHtml(reviewAgentInfo.name) + '</div>' +
+                    '<div class="review-agent-wallet">' + reviewAgentInfo.walletAddress.slice(0,8) + '...</div></div>' +
+                  '</div>' +
+                  '<div class="review-stars" id="review-stars">' +
+                    '<span class="review-star" data-rating="1">\u2606</span>' +
+                    '<span class="review-star" data-rating="2">\u2606</span>' +
+                    '<span class="review-star" data-rating="3">\u2606</span>' +
+                    '<span class="review-star" data-rating="4">\u2606</span>' +
+                    '<span class="review-star" data-rating="5">\u2606</span>' +
+                  '</div>' +
+                  '<textarea class="review-textarea" id="review-comment" placeholder="How did the agent perform?"></textarea>' +
+                  '<button class="btn btn-green" id="review-submit-btn" onclick="submitReview()">Submit Review</button>' +
+                '</div>' +
+              '</div>';
+            }
+          }
+        }
+
         // Action buttons based on status and wallet
         var actionsHtml = '';
 
@@ -957,6 +1093,7 @@
             threadHtml +
             resultHtml +
             paymentHtml +
+            reviewHtml +
             actionsHtml +
           '</div>';
 
@@ -965,6 +1102,41 @@
         if (restoredInput && draftValue) { restoredInput.value = draftValue; }
         var threadMsgs = document.getElementById('thread-messages');
         if (threadMsgs) { threadMsgs.scrollTop = threadMsgs.scrollHeight; }
+
+        // Set up star rating interaction
+        var starsContainer = document.getElementById('review-stars');
+        if (starsContainer) {
+          window._reviewRating = 0;
+          starsContainer.addEventListener('click', function(e) {
+            var star = e.target.closest('.review-star');
+            if (!star) return;
+            var rating = parseInt(star.dataset.rating);
+            window._reviewRating = rating;
+            starsContainer.querySelectorAll('.review-star').forEach(function(s) {
+              var r = parseInt(s.dataset.rating);
+              s.textContent = r <= rating ? '\u2605' : '\u2606';
+              s.classList.toggle('active', r <= rating);
+            });
+          });
+          starsContainer.addEventListener('mouseover', function(e) {
+            var star = e.target.closest('.review-star');
+            if (!star) return;
+            var hoverRating = parseInt(star.dataset.rating);
+            starsContainer.querySelectorAll('.review-star').forEach(function(s) {
+              var r = parseInt(s.dataset.rating);
+              s.textContent = r <= hoverRating ? '\u2605' : '\u2606';
+              s.classList.toggle('active', r <= hoverRating);
+            });
+          });
+          starsContainer.addEventListener('mouseleave', function() {
+            var current = window._reviewRating || 0;
+            starsContainer.querySelectorAll('.review-star').forEach(function(s) {
+              var r = parseInt(s.dataset.rating);
+              s.textContent = r <= current ? '\u2605' : '\u2606';
+              s.classList.toggle('active', r <= current);
+            });
+          });
+        }
 
         // Hide auto-refresh once completed/cancelled/closed
         if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'closed') {
@@ -1141,6 +1313,44 @@
           window.alert('Payment failed: ' + msg);
         }
         if (btn) { btn.disabled = false; btn.textContent = originalText; }
+      }
+    }
+
+    async function submitReview() {
+      var rating = window._reviewRating || 0;
+      if (rating < 1 || rating > 5) { window.alert('Please select a star rating (1-5)'); return; }
+      var comment = document.getElementById('review-comment').value.trim();
+      if (!comment) { window.alert('Please enter a review comment'); return; }
+      var walletAddr = getWalletAddr();
+      if (!walletAddr) { window.alert('Connect your wallet first'); return; }
+
+      var btn = document.getElementById('review-submit-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+
+      try {
+        var taskRes = await fetch(API + '/tasks/' + taskId);
+        var task = await taskRes.json();
+        if (!task.assignedAgent) { throw new Error('No agent assigned'); }
+
+        var res = await fetch(API + '/agents/' + task.assignedAgent + '/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: taskId,
+            reviewerAddress: walletAddr,
+            rating: rating,
+            comment: comment,
+          }),
+        });
+        if (res.ok) { loadTask(); }
+        else {
+          var d = await res.json();
+          window.alert(d.error || 'Failed to submit review');
+          if (btn) { btn.disabled = false; btn.textContent = 'Submit Review'; }
+        }
+      } catch(e) {
+        window.alert('Could not submit review');
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Review'; }
       }
     }
 
